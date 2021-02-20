@@ -1,0 +1,9 @@
+# Output files
+printbig.o
+microc.native
+testall.log
+_build
+
+# Environment
+**/.DS_store
+.devcontainer
