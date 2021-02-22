@@ -20,8 +20,8 @@ RUN apt-get -yq update && \
     cmake \
     opam
 
-RUN ln -s /usr/bin/lli-10.0 /usr/bin/lli
-RUN ln -s /usr/bin/llc-10.0 /usr/bin/llc
+RUN ln -s /usr/bin/lli-10 /usr/bin/lli
+RUN ln -s /usr/bin/llc-10 /usr/bin/llc
 
 RUN opam init --disable-sandboxing
 RUN opam install --yes llvm.10.0.0
