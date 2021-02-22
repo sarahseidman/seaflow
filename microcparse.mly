@@ -4,11 +4,11 @@
 open Ast
 %}
 
-%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA PLUS MINUS TIMES DIVIDE ASSIGN
+%token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN
 %token NOT EQ NEQ LT LEQ GT GEQ AND OR
-%token RETURN IF ELSE FOR WHILE INT FLOAT VOID CHAR
+%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT PRINT NULL
 %token <int> LITERAL
-%token <string> ID FLIT OBS
+%token <string> ID FLIT OBS SID
 %token <char> CHLIT
 %token EOF
 
@@ -33,16 +33,20 @@ program:
 
 decls:
    /* nothing */ { ([], [])               }
- | decls vdecl { (($2 :: fst $1), snd $1) }
- | decls fdecl { (fst $1, ($2 :: snd $1)) }
+  | decls vdecl { (($2 :: fst $1), snd $1) }
+  | decls fdecl { (fst $1, ($2 :: snd $1)) }
 
 fdecl:
-   typ ID LPAREN formals_opt RPAREN LBRACE vdecl_list stmt_list RBRACE
+   typ ID LPAREN formals_opt RPAREN LBRACE list RBRACE
      { { typ = $1;
 	 fname = $2;
 	 formals = List.rev $4;
-	 locals = List.rev $7;
-	 body = List.rev $8 } }
+	 body = List.rev $7 } }
+
+list:
+    /* nothing */   { ([], []) }
+  | list vdecl  { () }
+  | list stmt   { () }
 
 formals_opt:
     /* nothing */ { [] }
@@ -53,16 +57,21 @@ formal_list:
   | formal_list COMMA typ ID { ($3,$4) :: $1 }
 
 typ:
-    INT   { Int   }
-  | FLOAT { Float }
-  | VOID  { Void  }
+    INT     { Int   }
+  | FLOAT   { Float }
+  | VOID    { Void  }
+  | CHAR    { () }
+  | typ LBRAKT RBRAKT { () }  /* array */
+  | STRUCT ID { () }  /* struct */
 
 vdecl_list:
     /* nothing */    { [] }
   | vdecl_list vdecl { $2 :: $1 }
 
 vdecl:
-   typ ID SEMI { ($1, $2) }
+    typ ID SEMI                             { ($1, $2) }
+  | typ ID ASSIGN expr SEMI                 { () }
+  | STRUCT SID LBRACE vdecl_list RBRACE SEMI { () }
 
 stmt_list:
     /* nothing */  { [] }
@@ -72,11 +81,10 @@ stmt:
     expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
-  | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([])) }
-  | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7)        }
-  | FOR LPAREN expr_opt SEMI expr SEMI expr_opt RPAREN stmt
-                                            { For($3, $5, $7, $9)   }
-  | WHILE LPAREN expr RPAREN stmt           { While($3, $5)         }
+  | PRINT LPAREN expr RPAREN SEMI           { () }
+  | STRUCT SID ID ASSIGN LBRACE expr_struct RBRACE SEMI   { () }
+  | ID ASSIGN expr SEMI   { Assign($1, $3)         }
+  | OBS ASSIGN expr SEMI  { Assign($1, $3)         }
 
 expr_opt:
     /* nothing */ { Noexpr }
@@ -84,11 +92,11 @@ expr_opt:
 
 expr:
     LITERAL          { Literal($1)            }
-  | FLIT	     { Fliteral($1)           }
+  | NULL             { () }
+  | FLIT             { Fliteral($1)           }
   | ID               { Id($1)                 }
+  | OBS              { Obs($1)                }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
-  | expr MINUS  expr { Binop($1, Sub,   $3)   }
-  | expr TIMES  expr { Binop($1, Mult,  $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
   | expr EQ     expr { Binop($1, Equal, $3)   }
   | expr NEQ    expr { Binop($1, Neq,   $3)   }
@@ -100,9 +108,17 @@ expr:
   | expr OR     expr { Binop($1, Or,    $3)   }
   | MINUS expr %prec NOT { Unop(Neg, $2)      }
   | NOT expr         { Unop(Not, $2)          }
-  | ID ASSIGN expr   { Assign($1, $3)         }
   | ID LPAREN args_opt RPAREN { Call($1, $3)  }
   | LPAREN expr RPAREN { $2                   }
+  | IF LPAREN expr RPAREN expr ELSE expr    { If($3, $5, $7) }
+
+
+// expr_struct:
+//   | LBRACE args_list RBRACE {()}
+
+expr_struct:
+    expr                        { () }
+  | expr_struct COMMA expr      { () }
 
 args_opt:
     /* nothing */ { [] }

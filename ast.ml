@@ -18,15 +18,15 @@ type expr =
   | Unop of uop * expr
   | Assign of string * expr
   | Call of string * expr list
+  | If of expr * expr * expr
   | Noexpr
+  
 
 type stmt =
     Block of stmt list
   | Expr of expr
   | Return of expr
-  | If of expr * stmt * stmt
-  | For of expr * expr * expr * stmt
-  | While of expr * stmt
+  | Print of expr
 
 type func_decl = {
     typ : typ;
