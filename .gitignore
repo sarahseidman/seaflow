@@ -5,6 +5,7 @@ testall.log
 _build
 microcparse.ml
 microcparse.mli
+microcparse.output
 
 # Environment
 **/.DS_store

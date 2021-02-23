@@ -68,14 +68,18 @@ typ_list:
     typ                { () }
   | typ_list COMMA typ { () }
 
-vdecl_list:
-    /* nothing */    { [] }
-  | vdecl_list vdecl { $2 :: $1 }
+// vdecl_list:
+//     /* nothing */    { [] }
+//   | vdecl_list vdecl { $2 :: $1 }
 
 vdecl:
     typ ID SEMI                              { ($1, $2) }
   | typ ID ASSIGN expr SEMI                  { () }
-  | STRUCT SID LBRACE vdecl_list RBRACE SEMI { () }
+  | STRUCT SID LBRACE sdecl_list RBRACE SEMI { () }
+
+sdecl_list:
+    typ ID SEMI                 { () }
+  | sdecl_list typ ID SEMI            { () }
 
 stmt_list:
     /* nothing */  { [] }
