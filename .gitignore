@@ -3,6 +3,8 @@ printbig.o
 microc.native
 testall.log
 _build
+microcparse.ml
+microcparse.mli
 
 # Environment
 **/.DS_store

@@ -4,9 +4,9 @@
 open Ast
 %}
 
-%token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN
-%token NOT EQ NEQ LT LEQ GT GEQ AND OR
-%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT PRINT NULL
+%token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN ARROW
+%token EQ NEQ LT LEQ GT GEQ AND OR DOT
+%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL
 %token <int> LITERAL
 %token <string> ID FLIT OBS SID
 %token <char> CHLIT
@@ -24,7 +24,6 @@ open Ast
 %left LT GT LEQ GEQ
 %left PLUS MINUS
 %left TIMES DIVIDE
-%right NOT
 
 %%
 
@@ -62,15 +61,20 @@ typ:
   | VOID    { Void  }
   | CHAR    { () }
   | typ LBRAKT RBRAKT { () }  /* array */
-  | STRUCT ID { () }  /* struct */
+  | STRUCT ID { () }          /* struct */
+  | LPAREN typ_list RPAREN ARROW LPAREN typ RPAREN { () } /* for higher order function */
+
+typ_list:
+    typ                { () }
+  | typ_list COMMA typ { () }
 
 vdecl_list:
     /* nothing */    { [] }
   | vdecl_list vdecl { $2 :: $1 }
 
 vdecl:
-    typ ID SEMI                             { ($1, $2) }
-  | typ ID ASSIGN expr SEMI                 { () }
+    typ ID SEMI                              { ($1, $2) }
+  | typ ID ASSIGN expr SEMI                  { () }
   | STRUCT SID LBRACE vdecl_list RBRACE SEMI { () }
 
 stmt_list:
@@ -81,9 +85,9 @@ stmt:
     expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
-  | PRINT LPAREN expr RPAREN SEMI           { () }
   | STRUCT SID ID ASSIGN LBRACE expr_struct RBRACE SEMI   { () }
   | ID ASSIGN expr SEMI   { Assign($1, $3)         }
+  | ID ASSIGN LBRACE args_list RBRACE { () }
   | OBS ASSIGN expr SEMI  { Assign($1, $3)         }
 
 expr_opt:
@@ -94,8 +98,7 @@ expr:
     LITERAL          { Literal($1)            }
   | NULL             { () }
   | FLIT             { Fliteral($1)           }
-  | ID               { Id($1)                 }
-  | OBS              { Obs($1)                }
+  | id_var           { () }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
   | expr EQ     expr { Binop($1, Equal, $3)   }
@@ -106,19 +109,25 @@ expr:
   | expr GEQ    expr { Binop($1, Geq,   $3)   }
   | expr AND    expr { Binop($1, And,   $3)   }
   | expr OR     expr { Binop($1, Or,    $3)   }
-  | MINUS expr %prec NOT { Unop(Neg, $2)      }
-  | NOT expr         { Unop(Not, $2)          }
+  | MINUS expr       { Unop(Neg, $2)      }
+  | ID LBRAKT expr RBRAKT { () }
   | ID LPAREN args_opt RPAREN { Call($1, $3)  }
   | LPAREN expr RPAREN { $2                   }
   | IF LPAREN expr RPAREN expr ELSE expr    { If($3, $5, $7) }
+  | LPAREN formals_opt RPAREN ARROW LBRACE list RBRACE { () }   /* annoymous function */
 
 
-// expr_struct:
-//   | LBRACE args_list RBRACE {()}
 
 expr_struct:
     expr                        { () }
   | expr_struct COMMA expr      { () }
+
+
+id_var:
+    ID              { () }
+  | OBS             { () }
+  | id_var DOT ID   { () }
+
 
 args_opt:
     /* nothing */ { [] }

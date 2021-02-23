@@ -15,6 +15,7 @@ rule token = parse
 | '}'      { RBRACE }
 | '['      { LBRAKT }
 | ']'      { RBRAKT }
+| '.'      { DOT }
 | ';'      { SEMI }
 | ','      { COMMA }
 | '+'      { PLUS }
@@ -30,7 +31,6 @@ rule token = parse
 | ">="     { GEQ }
 | "&&"     { AND }
 | "||"     { OR }
-| "!"      { NOT }
 | "if"     { IF }
 | "else"   { ELSE }
 | "return" { RETURN }

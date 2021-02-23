@@ -3,7 +3,7 @@
 type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
           And | Or
 
-type uop = Neg | Not
+type uop = Neg
 
 type typ = Int | Bool | Float | Void
 
@@ -56,7 +56,6 @@ let string_of_op = function
 
 let string_of_uop = function
     Neg -> "-"
-  | Not -> "!"
 
 let rec string_of_expr = function
     Literal(l) -> string_of_int l
