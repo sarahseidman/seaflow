@@ -61,7 +61,7 @@ typ:
   | VOID    { Void  }
   | CHAR    { () }
   | typ LBRAKT RBRAKT { () }  /* array */
-  | STRUCT ID { () }          /* struct */
+  | STRUCT SID { () }          /* struct */
   | LPAREN typ_list RPAREN ARROW LPAREN typ RPAREN { () } /* for higher order function */
 
 typ_list:
@@ -85,9 +85,8 @@ stmt:
     expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
-  | STRUCT SID ID ASSIGN LBRACE expr_struct RBRACE SEMI   { () }
+  | ID ASSIGN LBRACE expr_struct RBRACE SEMI { () }
   | ID ASSIGN expr SEMI   { Assign($1, $3)         }
-  | ID ASSIGN LBRACE args_list RBRACE { () }
   | OBS ASSIGN expr SEMI  { Assign($1, $3)         }
 
 expr_opt:
