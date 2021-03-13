@@ -9,6 +9,7 @@ microcparse.output
 seaflowparse.ml
 seaflowparse.mli
 seaflowparse.output
+scanner.ml
 
 # Environment
 **/.DS_store

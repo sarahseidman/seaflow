@@ -1,6 +1,6 @@
-(* Ocamllex scanner for MicroC *)
+(* Ocamllex scanner for Seaflow *)
 
-{ open Microcparse }
+{ open Seaflowparse }
 
 let digit = ['0' - '9']
 let char = ['a'-'z'] | ['A'-'Z'] | ['0'-'9']

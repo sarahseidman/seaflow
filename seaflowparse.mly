@@ -29,15 +29,15 @@ open Ast
 %%
 
 program:
-  glob_body EOF { $1 }
+  glob_body EOF { List.rev $1 }
 
 glob_body:
-   /* nothing */ { ([], [])               }
-  | glob_body vdecl { (($2 :: fst $1), snd $1) }
-  | glob_body fdecl { (fst $1, ($2 :: snd $1)) }
-  | glob_body odecl { () }
-  | glob_body stmt { () }
-  | glob_body obs_stmt { () }
+   /* nothing */ { [] }
+  | glob_body vdecl { $2 :: $1 }
+  | glob_body fdecl { $2 :: $1 }
+  | glob_body odecl { $2 :: $1 }
+  | glob_body stmt { $2 :: $1 }
+  | glob_body obs_stmt { $2 :: $1 }
 
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE func_body RBRACE
@@ -47,17 +47,17 @@ fdecl:
 	 body = List.rev $7 } }
 
 odecl:
-    typ OBS SEMI                              { ($1, $2) }
-  | typ OBS ASSIGN expr SEMI                  { () }
-  | typ OBS ASSIGN obs_expr SEMI              { () }
-  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { () }
-  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { () }
+    typ OBS SEMI                              { Obs($2) }
+  | typ OBS ASSIGN expr SEMI                  { Assign($2, $4) }
+  | typ OBS ASSIGN obs_expr SEMI              { Assign($2, $4) }
+  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($2, $5) }
+  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($2, $5) }
 
 
 func_body:
-    /* nothing */   { ([], []) }
-  | func_body vdecl  { () }
-  | func_body stmt   { () }
+    /* nothing */    { []       }
+  | func_body vdecl  { $2 :: $1 }
+  | func_body stmt   { $2 :: $1 }
 
 formals_opt:
     /* nothing */ { [] }
@@ -71,26 +71,26 @@ typ:
     INT     { Int   }
   | FLOAT   { Float }
   | VOID    { Void  }
-  | CHAR    { () }
-  | typ LBRAKT RBRAKT { () }  /* array */
-  | STRUCT SID { () }          /* struct */
-  | LPAREN typ_list RPAREN ARROW LPAREN typ RPAREN { () } /* for higher order function */
+  | CHAR    { Char }
+  | typ LBRAKT RBRAKT { Arr($1) }             /* array */
+  | STRUCT SID        { Struct($2) }          /* struct */
+  | LPAREN typ_list RPAREN ARROW LPAREN typ RPAREN { Func(List.rev $2, $6) } /* for higher order function */
 
 typ_list:
-    typ                { () }
-  | typ_list COMMA typ { () }
+    typ                { [$1] }
+  | typ_list COMMA typ { $3 :: $1 }
 
 vdecl:
-    typ ID SEMI                              { ($1, $2) }
-  | typ ID ASSIGN expr SEMI                  { () }
-  | typ ID ASSIGN LBRACE args_list RBRACE SEMI { () }
-  | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { () }
-  | STRUCT SID LBRACE sdecl_list RBRACE SEMI { () }
+    // typ ID SEMI                              { Id($2) }
+    typ ID ASSIGN expr SEMI                  { Assign($1, $2, $4) }
+  | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($1, $2, List.rev $5) }
+  | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($1, $2, List.rev $5) }
+  | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Decl($2, List.rev $4) }
 
 
 sdecl_list:
-    typ ID SEMI                 { () }
-  | sdecl_list typ ID SEMI            { () }
+    typ ID SEMI                 { [($1,$2)] }
+  | sdecl_list typ ID SEMI            { ($2,$3) :: $1 }
 
 
 stmt:
@@ -99,9 +99,9 @@ stmt:
 
 
 obs_stmt:
-    obs_expr SEMI         { () }
+    obs_expr SEMI         { Obs($1) }
   | OBS ASSIGN expr SEMI  { Assign($1, $3)         }
-  | OBS ASSIGN obs_expr SEMI    { () }
+  | OBS ASSIGN obs_expr SEMI    { Assign($1, $3) }
 
 
 expr_opt:
@@ -112,8 +112,8 @@ expr:
     LITERAL          { Literal($1)            }
   | NULL             { () }
   | FLIT             { Fliteral($1)           }
-  | CHLIT            { () }
-  | id_var           { () }
+  | CHLIT            { Chliteral($1) }
+  | id_var           { Id($1)                 }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
   | expr EQ     expr { Binop($1, Equal, $3)   }
@@ -124,15 +124,15 @@ expr:
   | expr GEQ    expr { Binop($1, Geq,   $3)   }
   | expr AND    expr { Binop($1, And,   $3)   }
   | expr OR     expr { Binop($1, Or,    $3)   }
-  | MINUS expr       { Unop(Neg, $2)      }
-  | ID LBRAKT expr RBRAKT { () }
+  | MINUS expr       { Unop(Neg, $2)          }
+  | ID LBRAKT expr RBRAKT { Arr_Ref($1, $3)   }
   | ID LPAREN args_opt RPAREN { Call($1, $3)  }
   | LPAREN expr RPAREN { $2                   }
   | IF LPAREN expr RPAREN expr ELSE expr    { If($3, $5, $7) }
-  | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { () }   /* anonymous function */
+  | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { Anon(List.rev $2, List.rev $6) }   /* anonymous function */
 
 obs_expr:
-  | obs_var              { () }
+  | obs_var              { Id($1) }
   | obs_expr PLUS   expr { Binop($1, Add,   $3)   }
   | obs_expr DIVIDE expr { Binop($1, Div,   $3)   }
   | obs_expr EQ     expr { Binop($1, Equal, $3)   }
@@ -166,20 +166,20 @@ obs_expr:
   | obs_expr AND    obs_expr { Binop($1, And,   $3)   }
   | obs_expr OR     obs_expr { Binop($1, Or,    $3)   }
 
-  | MINUS obs_expr       { Unop(Neg, $2)      }
-  | OBS LBRAKT expr RBRAKT { () }
+  | MINUS obs_expr         { Unop(Neg, $2)      }
+  | OBS LBRAKT expr RBRAKT { Arr_Ref($1, $3) }
   | LPAREN obs_expr RPAREN { $2                   }
 
 
 
 id_var:
-    ID               { () }
-  |  id_var DOT ID   { () }
+    ID              { $1 }
+  | id_var DOT ID   { Ref($1, $3) }
 
 
 obs_var:
-    OBS             { () }
-  | obs_var DOT ID   { () }
+    OBS             { $1 }
+  | obs_var DOT ID   { Ref($1, $3) }
 
 
 args_opt:
