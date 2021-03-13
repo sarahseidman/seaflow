@@ -6,6 +6,9 @@ _build
 microcparse.ml
 microcparse.mli
 microcparse.output
+seaflowparse.ml
+seaflowparse.mli
+seaflowparse.output
 
 # Environment
 **/.DS_store

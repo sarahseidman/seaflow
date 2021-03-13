@@ -75,7 +75,10 @@ typ_list:
 vdecl:
     typ ID SEMI                              { ($1, $2) }
   | typ ID ASSIGN expr SEMI                  { () }
+  | typ ID ASSIGN LBRACE expr_struct RBRACE SEMI { () }
+  | typ ID ASSIGN LBRAKT expr_struct RBRAKT SEMI { () }
   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { () }
+
 
 sdecl_list:
     typ ID SEMI                 { () }
@@ -89,9 +92,11 @@ stmt:
     expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
-  | ID ASSIGN LBRACE expr_struct RBRACE SEMI { () }
-  | ID ASSIGN expr SEMI   { Assign($1, $3)         }
+  // | ID ASSIGN LBRAKT expr_struct RBRAKT SEMI { () }  /* array */
+  // | ID ASSIGN LBRACE expr_struct RBRACE SEMI { () }  /* struct */
+  // | ID ASSIGN expr SEMI   { Assign($1, $3)         }
   | OBS ASSIGN expr SEMI  { Assign($1, $3)         }
+
 
 expr_opt:
     /* nothing */ { Noexpr }
@@ -101,6 +106,7 @@ expr:
     LITERAL          { Literal($1)            }
   | NULL             { () }
   | FLIT             { Fliteral($1)           }
+  | CHLIT            { () }
   | id_var           { () }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
