@@ -5,7 +5,7 @@ type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
 
 type uop = Neg
 
-type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Func of typ list * typ
+type typ = Int | Float | Void | Char | Arr of typ | (* Struct of string * ((string * typ) Arr ) | *) Func of typ list * typ
 (* how to add func? type is complicated *)
 
 type bind = typ * string
@@ -15,6 +15,7 @@ type expr =
   | Fliteral of string
   | Chliteral of char
   | Obs of string
+  | Id of string
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Call of string * expr list
@@ -24,8 +25,9 @@ type expr =
   | Anon of bind list * stmt list
   | Noexpr
 
+and
 
-type stmt =
+stmt =
     Block of stmt list
   | Expr of expr
   | Return of expr
@@ -48,6 +50,7 @@ type program = bind list * func_decl list
 
 (* Pretty-printing functions *)
 
+(*
 let string_of_op = function
     Add -> "+"
   | Sub -> "-"
@@ -68,8 +71,6 @@ let string_of_uop = function
 let rec string_of_expr = function
     Literal(l) -> string_of_int l
   | Fliteral(l) -> l
-  | BoolLit(true) -> "true"
-  | BoolLit(false) -> "false"
   | Id(s) -> s
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
@@ -111,3 +112,4 @@ let string_of_fdecl fdecl =
 let string_of_program (vars, funcs) =
   String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
   String.concat "\n" (List.map string_of_fdecl funcs)
+*)

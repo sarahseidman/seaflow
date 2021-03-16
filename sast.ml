@@ -6,21 +6,18 @@ type sexpr = typ * sx
 and sx =
     SLiteral of int
   | SFliteral of string
-  | SBoolLit of bool
   | SId of string
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
   | SAssign of string * sexpr
   | SCall of string * sexpr list
+  | SIf of sexpr * sexpr * sexpr
   | SNoexpr
 
 type sstmt =
     SBlock of sstmt list
   | SExpr of sexpr
   | SReturn of sexpr
-  | SIf of sexpr * sstmt * sstmt
-  | SFor of sexpr * sexpr * sexpr * sstmt
-  | SWhile of sexpr * sstmt
 
 type sfunc_decl = {
     styp : typ;
@@ -34,7 +31,7 @@ type sprogram = bind list * sfunc_decl list
 
 (* Pretty-printing functions *)
 
-let rec string_of_sexpr (t, e) =
+(* let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
     SLiteral(l) -> string_of_int l
   | SBoolLit(true) -> "true"
@@ -74,4 +71,4 @@ let string_of_sfdecl fdecl =
 
 let string_of_sprogram (vars, funcs) =
   String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
-  String.concat "\n" (List.map string_of_sfdecl funcs)
+  String.concat "\n" (List.map string_of_sfdecl funcs) *)

@@ -36,7 +36,6 @@ let translate (globals, functions) =
   (* Return the LLVM type for a MicroC type *)
   let ltype_of_typ = function
       A.Int   -> i32_t
-    | A.Bool  -> i1_t
     | A.Float -> float_t
     | A.Void  -> void_t
   in
@@ -110,7 +109,6 @@ let translate (globals, functions) =
     (* Construct code for an expression; return its value *)
     let rec expr builder ((_, e) : sexpr) = match e with
 	SLiteral i  -> L.const_int i32_t i
-      | SBoolLit b  -> L.const_int i1_t (if b then 1 else 0)
       | SFliteral l -> L.const_float_of_string float_t l
       | SNoexpr     -> L.const_int i32_t 0
       | SId s       -> L.build_load (lookup s) s builder
@@ -154,8 +152,7 @@ let translate (globals, functions) =
           let e' = expr builder e in
 	  (match op with
 	    A.Neg when t = A.Float -> L.build_fneg 
-	  | A.Neg                  -> L.build_neg
-          | A.Not                  -> L.build_not) e' "tmp" builder
+	  | A.Neg                  -> L.build_neg) e' "tmp" builder
       | SCall ("print", [e]) | SCall ("printb", [e]) ->
 	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
 	    "printf" builder
@@ -195,7 +192,7 @@ let translate (globals, functions) =
                               (* Build return statement *)
                             | _ -> L.build_ret (expr builder e) builder );
                      builder
-      | SIf (predicate, then_stmt, else_stmt) ->
+      (* | SIf (predicate, then_stmt, else_stmt) ->
          let bool_val = expr builder predicate in
 	 let merge_bb = L.append_block context "merge" the_function in
          let build_br_merge = L.build_br merge_bb in (* partial function *)
@@ -209,9 +206,9 @@ let translate (globals, functions) =
 	   build_br_merge;
 
 	 ignore(L.build_cond_br bool_val then_bb else_bb builder);
-	 L.builder_at_end context merge_bb
+	 L.builder_at_end context merge_bb *)
 
-      | SWhile (predicate, body) ->
+      (* | SWhile (predicate, body) ->
 	  let pred_bb = L.append_block context "while" the_function in
 	  ignore(L.build_br pred_bb builder);
 
@@ -224,11 +221,11 @@ let translate (globals, functions) =
 
 	  let merge_bb = L.append_block context "merge" the_function in
 	  ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
-	  L.builder_at_end context merge_bb
+	  L.builder_at_end context merge_bb *)
 
       (* Implement for loops as while loops *)
-      | SFor (e1, e2, e3, body) -> stmt builder
-	    ( SBlock [SExpr e1 ; SWhile (e2, SBlock [body ; SExpr e3]) ] )
+      (* | SFor (e1, e2, e3, body) -> stmt builder
+	    ( SBlock [SExpr e1 ; SWhile (e2, SBlock [body ; SExpr e3]) ] ) *)
     in
 
     (* Build the code for each statement in the function *)
