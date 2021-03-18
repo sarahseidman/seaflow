@@ -28,6 +28,18 @@ clean :
 	ocamlbuild -clean
 	rm -rf testall.log ocamlllvm *.diff
 
+.PHONY : intermediate
+intermediate :
+	ocamllex scanner.mll
+	ocamlyacc seaflowparse.mly
+	ocamlc -c ast.ml
+	ocamlc -c seaflowparse.mli
+	ocamlc -c scanner.ml
+	ocamlc -c seaflowparse.ml
+	ocamlc -c seaflow.ml
+	ocamlc -o seaflow seaflowparse.cmo scanner.cmo seaflow.cmo
+
+	
 # Testing the "printbig" example
 
 printbig : printbig.c

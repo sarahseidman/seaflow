@@ -14,7 +14,6 @@ type expr =
     Literal of int
   | Fliteral of string
   | Chliteral of char
-  | Obs of string
   | Id of string
   | Binop of expr * op * expr
   | Unop of uop * expr
@@ -24,29 +23,55 @@ type expr =
   | If of expr * expr * expr
   | Anon of bind list * stmt list
   | Noexpr
+  | Void
 
 and
 
 stmt =
     Block of stmt list
+  (* | Obs of string *)
   | Expr of expr
   | Return of expr
   | Print of expr
-  | Assign of typ * string * expr (* type?? *)
-  | Arr_Assign of typ * string * expr list
-  | Str_Assign of typ * string * expr list
-  | Str_Decl of typ * bind list
+  | Decl of typ * string * expr
+  | Arr_Decl of typ * string * expr list
+  | Str_Decl of typ * string * expr list
+  | Str_Def of string * bind list
 
 
 type func_decl = {
     typ : typ;
     fname : string;
     formals : bind list;
-    locals : bind list;
+    (* locals : bind list; *)
     body : stmt list;
   }
 
-type program = bind list * func_decl list
+
+type obs_stmt = 
+    Obs of string 
+  | Expr of expr
+  | Decl of typ * string * expr
+  | Assign of string * expr (* type?? *)
+  | Arr_Decl of typ * string * expr list
+  | Str_Decl of typ * string * expr list
+  (* glob_line:
+  vdec { Vdecl($1) }
+| fdecl { Fdecl($1) }
+| odecl { Odecl($1) }
+| stmt { Stmt($1) }
+| obs_stmt { Obs_Stmt($1) } *)
+
+(* type glob
+  | Vdecl of  *)
+
+
+type glob = 
+    Stmt of stmt
+  | Fdecl of func_decl
+  | Obs_Stmt of obs_stmt
+
+type program = glob list
 
 (* Pretty-printing functions *)
 

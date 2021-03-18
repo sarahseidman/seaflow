@@ -10,6 +10,8 @@ seaflowparse.ml
 seaflowparse.mli
 seaflowparse.output
 scanner.ml
+*.cmi
+*.cmo
 
 # Environment
 **/.DS_store

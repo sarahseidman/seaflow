@@ -28,16 +28,32 @@ open Ast
 
 %%
 
+// program:
+//   glob_body EOF { List.rev $1 }
+  
 program:
-  glob_body EOF { List.rev $1 }
+  glob_lines EOF { List.rev $1 }
 
-glob_body:
-   /* nothing */ { [] }
-  | glob_body vdecl { $2 :: $1 }
-  | glob_body fdecl { $2 :: $1 }
-  | glob_body odecl { $2 :: $1 }
-  | glob_body stmt { $2 :: $1 }
-  | glob_body obs_stmt { $2 :: $1 }
+// glob_body:
+//    /* nothing */ { [] }
+//   | glob_body vdecl { $2 :: $1 }
+//   | glob_body fdecl { $2 :: $1 }
+//   | glob_body odecl { $2 :: $1 }
+//   | glob_body stmt { $2 :: $1 }
+//   | glob_body obs_stmt { $2 :: $1 }
+
+
+glob_lines:
+     { [] }
+  | glob_lines glob_line { $2 :: $1 }
+
+glob_line:
+  | fdecl    { Fdecl($1) }
+  | stmt     { Stmt($1) }
+  | obs_stmt { Obs_Stmt($1) }
+
+
+
 
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE func_body RBRACE
@@ -46,17 +62,16 @@ fdecl:
 	 formals = List.rev $4;
 	 body = List.rev $7 } }
 
-odecl:
-    typ OBS SEMI                              { Obs($2) }
-  | typ OBS ASSIGN expr SEMI                  { Assign($2, $4) }
-  | typ OBS ASSIGN obs_expr SEMI              { Assign($2, $4) }
-  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($2, $5) }
-  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($2, $5) }
+// odecl:
+//     typ OBS SEMI                              { Obs($2) }
+//   | typ OBS ASSIGN expr SEMI                  { Assign($2, $4) }
+//   | typ OBS ASSIGN obs_expr SEMI              { Assign($2, $4) }
+//   | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($2, $5) }
+//   | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($2, $5) }
 
 
 func_body:
     /* nothing */    { []       }
-  | func_body vdecl  { $2 :: $1 }
   | func_body stmt   { $2 :: $1 }
 
 formals_opt:
@@ -80,12 +95,12 @@ typ_list:
     typ                { [$1] }
   | typ_list COMMA typ { $3 :: $1 }
 
-vdecl:
-    // typ ID SEMI                              { Id($2) }
-    typ ID ASSIGN expr SEMI                  { Assign($1, $2, $4) }
-  | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($1, $2, List.rev $5) }
-  | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($1, $2, List.rev $5) }
-  | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Decl($2, List.rev $4) }
+// vdecl:
+//     // typ ID SEMI                              { Id($2) }
+//     typ ID ASSIGN expr SEMI                  { Assign($1, $2, $4) }
+//   | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($1, $2, List.rev $5) }
+//   | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($1, $2, List.rev $5) }
+//   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Decl($2, List.rev $4) }
 
 
 sdecl_list:
@@ -96,13 +111,23 @@ sdecl_list:
 stmt:
     expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
+// vdecls
+  | typ ID ASSIGN expr SEMI                  { Decl($1, $2, $4) }
+  | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
+  | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Decl($1, $2, List.rev $5) }
+  | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Def($2, List.rev $4) }
 
 
 obs_stmt:
-    obs_expr SEMI         { Obs($1) }
-  | OBS ASSIGN expr SEMI  { Assign($1, $3)         }
-  | OBS ASSIGN obs_expr SEMI    { Assign($1, $3) }
-
+    obs_expr SEMI                             { Expr $1 }
+  | OBS ASSIGN expr SEMI                      { Assign($1, $3)         }
+  | OBS ASSIGN obs_expr SEMI                  { Assign($1, $3) }
+// odecl:
+  | typ OBS SEMI                              { Obs($2) }
+  | typ OBS ASSIGN expr SEMI                  { Decl($1, $2, $4) }
+  | typ OBS ASSIGN obs_expr SEMI              { Decl($1, $2, $4) }
+  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
+  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Decl($1, $2, List.rev $5) }
 
 expr_opt:
     /* nothing */ { Noexpr }
@@ -110,7 +135,7 @@ expr_opt:
 
 expr:
     LITERAL          { Literal($1)            }
-  | NULL             { () }
+  | NULL             { Void }
   | FLIT             { Fliteral($1)           }
   | CHLIT            { Chliteral($1) }
   | id_var           { Id($1)                 }
@@ -174,12 +199,12 @@ obs_expr:
 
 id_var:
     ID              { $1 }
-  | id_var DOT ID   { Ref($1, $3) }
+  // | id_var DOT ID   { Id(Ref($1, $3)) }
 
 
 obs_var:
     OBS             { $1 }
-  | obs_var DOT ID   { Ref($1, $3) }
+  // | obs_var DOT ID   { Ref($1, $3) }
 
 
 args_opt:
