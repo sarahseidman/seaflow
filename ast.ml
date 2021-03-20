@@ -5,8 +5,7 @@ type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
 
 type uop = Neg
 
-type typ = Int | Float | Void | Char | Arr of typ | (* Struct of string * ((string * typ) Arr ) | *) Func of typ list * typ
-(* how to add func? type is complicated *)
+type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Func of typ list * typ
 
 type bind = typ * string
 
@@ -75,7 +74,7 @@ type program = glob list
 
 (* Pretty-printing functions *)
 
-(*
+(* 
 let string_of_op = function
     Add -> "+"
   | Sub -> "-"
@@ -136,5 +135,4 @@ let string_of_fdecl fdecl =
 
 let string_of_program (vars, funcs) =
   String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
-  String.concat "\n" (List.map string_of_fdecl funcs)
-*)
+  String.concat "\n" (List.map string_of_fdecl funcs) *)

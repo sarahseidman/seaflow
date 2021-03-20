@@ -24,22 +24,21 @@ let translate (globals, functions) =
   
   (* Create the LLVM compilation module into which
      we will generate code *)
-  let the_module = L.create_module context "Seaflow" in
+  let the_module = L.create_module context "MicroC" in
 
   (* Get types from the context *)
   let i32_t      = L.i32_type    context
   and i8_t       = L.i8_type     context
-  (* and i1_t       = L.i1_type     context *)
+  and i1_t       = L.i1_type     context
   and float_t    = L.double_type context
-  (* and char_t     = L.i8_type     context *)
   and void_t     = L.void_type   context in
 
   (* Return the LLVM type for a MicroC type *)
   let ltype_of_typ = function
       A.Int   -> i32_t
+    | A.Bool  -> i1_t
     | A.Float -> float_t
     | A.Void  -> void_t
-    | A.Char  -> i8_t
   in
 
   (* Create a map of global variables after creating each *)
@@ -54,7 +53,7 @@ let translate (globals, functions) =
   let printf_t : L.lltype = 
       L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
   let printf_func : L.llvalue = 
-      L.declare_function "print" printf_t the_module in
+      L.declare_function "printf" printf_t the_module in
 
   let printbig_t : L.lltype =
       L.function_type i32_t [| i32_t |] in
@@ -111,6 +110,7 @@ let translate (globals, functions) =
     (* Construct code for an expression; return its value *)
     let rec expr builder ((_, e) : sexpr) = match e with
 	SLiteral i  -> L.const_int i32_t i
+      | SBoolLit b  -> L.const_int i1_t (if b then 1 else 0)
       | SFliteral l -> L.const_float_of_string float_t l
       | SNoexpr     -> L.const_int i32_t 0
       | SId s       -> L.build_load (lookup s) s builder
@@ -154,7 +154,8 @@ let translate (globals, functions) =
           let e' = expr builder e in
 	  (match op with
 	    A.Neg when t = A.Float -> L.build_fneg 
-	  | A.Neg                  -> L.build_neg) e' "tmp" builder
+	  | A.Neg                  -> L.build_neg
+          | A.Not                  -> L.build_not) e' "tmp" builder
       | SCall ("print", [e]) | SCall ("printb", [e]) ->
 	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
 	    "printf" builder
@@ -194,7 +195,7 @@ let translate (globals, functions) =
                               (* Build return statement *)
                             | _ -> L.build_ret (expr builder e) builder );
                      builder
-      (* | SIf (predicate, then_stmt, else_stmt) ->
+      | SIf (predicate, then_stmt, else_stmt) ->
          let bool_val = expr builder predicate in
 	 let merge_bb = L.append_block context "merge" the_function in
          let build_br_merge = L.build_br merge_bb in (* partial function *)
@@ -208,9 +209,9 @@ let translate (globals, functions) =
 	   build_br_merge;
 
 	 ignore(L.build_cond_br bool_val then_bb else_bb builder);
-	 L.builder_at_end context merge_bb *)
+	 L.builder_at_end context merge_bb
 
-      (* | SWhile (predicate, body) ->
+      | SWhile (predicate, body) ->
 	  let pred_bb = L.append_block context "while" the_function in
 	  ignore(L.build_br pred_bb builder);
 
@@ -223,11 +224,11 @@ let translate (globals, functions) =
 
 	  let merge_bb = L.append_block context "merge" the_function in
 	  ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
-	  L.builder_at_end context merge_bb *)
+	  L.builder_at_end context merge_bb
 
       (* Implement for loops as while loops *)
-      (* | SFor (e1, e2, e3, body) -> stmt builder
-	    ( SBlock [SExpr e1 ; SWhile (e2, SBlock [body ; SExpr e3]) ] ) *)
+      | SFor (e1, e2, e3, body) -> stmt builder
+	    ( SBlock [SExpr e1 ; SWhile (e2, SBlock [body ; SExpr e3]) ] )
     in
 
     (* Build the code for each statement in the function *)

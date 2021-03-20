@@ -13,8 +13,8 @@ module StringMap = Map.Make(String)
 let check (globals, functions) =
 
   (* Verify a list of bindings has no void types or duplicate names *)
-  let check_binds (kind : string) (binds : bind list) = () in
-    (* List.iter (function
+  let check_binds (kind : string) (binds : bind list) =
+    List.iter (function
 	(Void, b) -> raise (Failure ("illegal void " ^ kind ^ " " ^ b))
       | _ -> ()) binds;
     let rec dups = function
@@ -23,7 +23,7 @@ let check (globals, functions) =
 	  raise (Failure ("duplicate " ^ kind ^ " " ^ n1))
       | _ :: t -> dups t
     in dups (List.sort (fun (_,a) (_,b) -> compare a b) binds)
-  in *)
+  in
 
   (**** Check global variables ****)
 
@@ -37,8 +37,9 @@ let check (globals, functions) =
       typ = Void;
       fname = name; 
       formals = [(ty, "x")];
-      (*locals = [];*) body = [] } map
+      locals = []; body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("print", Int);
+			                         ("printb", Bool);
 			                         ("printf", Float);
 			                         ("printbig", Int) ]
   in
@@ -70,7 +71,7 @@ let check (globals, functions) =
   let check_function func =
     (* Make sure no formals or locals are void or duplicates *)
     check_binds "formal" func.formals;
-    (* check_binds "local" func.locals; *)
+    check_binds "local" func.locals;
 
     (* Raise an exception if the given rvalue type cannot be assigned to
        the given lvalue type *)
@@ -80,7 +81,7 @@ let check (globals, functions) =
 
     (* Build local symbol table of variables for this function *)
     let symbols = List.fold_left (fun m (ty, name) -> StringMap.add name ty m)
-	                StringMap.empty (globals @ func.formals (*@ func.locals*) )
+	                StringMap.empty (globals @ func.formals @ func.locals )
     in
 
     (* Return a variable from our local symbol table *)
@@ -89,27 +90,27 @@ let check (globals, functions) =
       with Not_found -> raise (Failure ("undeclared identifier " ^ s))
     in
 
-
-
-
     (* Return a semantically-checked expression, i.e., with a type *)
     let rec expr = function
         Literal  l -> (Int, SLiteral l)
       | Fliteral l -> (Float, SFliteral l)
+      | BoolLit l  -> (Bool, SBoolLit l)
       | Noexpr     -> (Void, SNoexpr)
       | Id s       -> (type_of_identifier s, SId s)
-      | If(ep, e1, e2) ->
-          let (tp, ep1) = expr ep
-          and (t1, e1') = expr e1 
-          and (t2, e2') = expr e2 in
-          (t1, SIf(check_bool_expr ep, (t1, e1'), (t2, e2')))
+      | Assign(var, e) as ex -> 
+          let lt = type_of_identifier var
+          and (rt, e') = expr e in
+          let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^ 
+            string_of_typ rt ^ " in " ^ string_of_expr ex
+          in (check_assign lt rt err, SAssign(var, (rt, e')))
       | Unop(op, e) as ex -> 
           let (t, e') = expr e in
           let ty = match op with
             Neg when t = Int || t = Float -> t
-          | _ -> raise (Failure ("illegal unary operator^ 
+          | Not when t = Bool -> Bool
+          | _ -> raise (Failure ("illegal unary operator " ^ 
                                  string_of_uop op ^ string_of_typ t ^
-                                  in  ^ string_of_expr ex")) (* remember to change err msgs back *)
+                                 " in " ^ string_of_expr ex))
           in (ty, SUnop(op, (t, e')))
       | Binop(e1, op, e2) as e -> 
           let (t1, e1') = expr e1 
@@ -120,57 +121,49 @@ let check (globals, functions) =
           let ty = match op with
             Add | Sub | Mult | Div when same && t1 = Int   -> Int
           | Add | Sub | Mult | Div when same && t1 = Float -> Float
-          | Equal | Neq            when same               -> Int
+          | Equal | Neq            when same               -> Bool
           | Less | Leq | Greater | Geq
-                     when same && (t1 = Int || t1 = Float) -> Int
-          | And | Or when same && t1 = Int -> Int
+                     when same && (t1 = Int || t1 = Float) -> Bool
+          | And | Or when same && t1 = Bool -> Bool
           | _ -> raise (
-	      Failure ("illegal binary operator  ^
-                       string_of_typ t1 ^  ^ string_of_op op ^  ^
-                       string_of_typ t2 ^  in  ^ string_of_expr e"))
+	      Failure ("illegal binary operator " ^
+                       string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                       string_of_typ t2 ^ " in " ^ string_of_expr e))
           in (ty, SBinop((t1, e1'), op, (t2, e2')))
       | Call(fname, args) as call -> 
           let fd = find_func fname in
           let param_length = List.length fd.formals in
           if List.length args != param_length then
-            raise (Failure ("expecting ^ string_of_int param_length ^ 
-                             arguments in  ^ string_of_expr call"))
+            raise (Failure ("expecting " ^ string_of_int param_length ^ 
+                            " arguments in " ^ string_of_expr call))
           else let check_call (ft, _) e = 
             let (et, e') = expr e in 
-            let err = "illegal argument found  ^ string_of_typ et ^
-               expected  ^ string_of_typ ft ^  in  ^ string_of_expr e"
+            let err = "illegal argument found " ^ string_of_typ et ^
+              " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e
             in (check_assign ft et err, e')
           in 
           let args' = List.map2 check_call fd.formals args
           in (fd.typ, SCall(fname, args'))
-    and
+    in
 
-    (* let check_bool_expr e = 
+    let check_bool_expr e = 
       let (t', e') = expr e
       and err = "expected Boolean expression in " ^ string_of_expr e
       in if t' != Bool then raise (Failure err) else (t', e') 
-    in *)
-
-    check_bool_expr e =
-      let (t', e') = expr e
-      and err = "expected Boolean expression in  ^ string_of_expr e"
-      in if t' != Int then raise (Failure err) else (t', e')
     in
-
 
     (* Return a semantically-checked statement i.e. containing sexprs *)
     let rec check_stmt = function
         Expr e -> SExpr (expr e)
-      | Decl(lt, var, e) as ex -> 
-        let (rt, e') = expr e in
-        let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
-          string_of_typ rt ^  in  ^ string_of_expr ex"
-        in (*(check_assign lt rt err, *) SDecl(lt, var, (rt, e'))
+      | If(p, b1, b2) -> SIf(check_bool_expr p, check_stmt b1, check_stmt b2)
+      | For(e1, e2, e3, st) ->
+	  SFor(expr e1, check_bool_expr e2, expr e3, check_stmt st)
+      | While(p, s) -> SWhile(check_bool_expr p, check_stmt s)
       | Return e -> let (t, e') = expr e in
         if t = func.typ then SReturn (t, e') 
         else raise (
-          Failure ("return gives  ^ string_of_typ t ^  expected  ^
-            string_of_typ func.typ ^  in  ^ string_of_expr e"))
+	  Failure ("return gives " ^ string_of_typ t ^ " expected " ^
+		   string_of_typ func.typ ^ " in " ^ string_of_expr e))
 	    
 	    (* A block is correct if each statement is correct and nothing
 	       follows any Return statement.  Nested blocks are flattened. *)
@@ -187,7 +180,7 @@ let check (globals, functions) =
     { styp = func.typ;
       sfname = func.fname;
       sformals = func.formals;
-      (* slocals  = func.locals; *)
+      slocals  = func.locals;
       sbody = match check_stmt (Block func.body) with
 	SBlock(sl) -> sl
       | _ -> raise (Failure ("internal error: block didn't become a block?"))

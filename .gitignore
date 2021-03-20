@@ -12,6 +12,8 @@ seaflowparse.output
 scanner.ml
 *.cmi
 *.cmo
+seaflow
+seaflow.native
 
 # Environment
 **/.DS_store

@@ -2,105 +2,39 @@
 
 open Ast
 
-(* type sexpr = typ * sx
+type sexpr = typ * sx
 and sx =
     SLiteral of int
   | SFliteral of string
+  | SBoolLit of bool
   | SId of string
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
   | SAssign of string * sexpr
   | SCall of string * sexpr list
-  | SIf of sexpr * sexpr * sexpr
   | SNoexpr
 
 type sstmt =
     SBlock of sstmt list
   | SExpr of sexpr
   | SReturn of sexpr
-
-type sobs_stmt = 
-    
-
-type sfunc_decl = {
-    styp : typ;
-    sfname : string;
-    sformals : bind list;
-    (* slocals : bind list; *)
-    sbody : sstmt list;
-  }
-
-type sprogram = bind list * sfunc_decl list *)
-
-
-
-type sexpr = typ * sx
-and sx =
-    SLiteral of int
-  | SFliteral of string
-  | SChliteral of char
-  | SId of string
-  | SBinop of sexpr * op * sexpr
-  | SUnop of uop * sexpr
-  | SCall of string * sexpr list
-  | SRef of sexpr * string list
-  | SArr_Ref of string * sexpr
-  | SIf of sexpr * sexpr * sexpr
-  | SAnon of bind list * sstmt list
-  | SNoexpr
-  | SVoid
-
-and
-
-sstmt =
-    SBlock of sstmt list
-  (* | Obs of string *)
-  | SExpr of sexpr
-  | SReturn of sexpr
-  | SPrint of sexpr
-  | SDecl of typ * string * sexpr
-  | SArr_Decl of typ * string * sexpr list
-  | SStr_Decl of typ * string * sexpr list
-  | SStr_Def of string * bind list
-
+  | SIf of sexpr * sstmt * sstmt
+  | SFor of sexpr * sexpr * sexpr * sstmt
+  | SWhile of sexpr * sstmt
 
 type sfunc_decl = {
     styp : typ;
     sfname : string;
     sformals : bind list;
-    (* locals : bind list; *)
+    slocals : bind list;
     sbody : sstmt list;
   }
 
-
-type sobs_stmt = 
-    SObs of string 
-  | SExpr of sexpr
-  | SDecl of typ * string * sexpr
-  | SAssign of string * sexpr (* type?? *)
-  | SArr_Decl of typ * string * sexpr list
-  | SStr_Decl of typ * string * sexpr list
-  (* glob_line:
-  vdec { Vdecl($1) }
-| fdecl { Fdecl($1) }
-| odecl { Odecl($1) }
-| stmt { Stmt($1) }
-| obs_stmt { Obs_Stmt($1) } *)
-
-(* type glob
-  | Vdecl of  *)
-
-
-type sglob = 
-    SStmt of sstmt
-  | SFdecl of sfunc_decl
-  | SObs_Stmt of sobs_stmt
-
-type sprogram = sglob list
+type sprogram = bind list * sfunc_decl list
 
 (* Pretty-printing functions *)
 
-(* let rec string_of_sexpr (t, e) =
+let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
     SLiteral(l) -> string_of_int l
   | SBoolLit(true) -> "true"
@@ -119,8 +53,8 @@ type sprogram = sglob list
 let rec string_of_sstmt = function
     SBlock(stmts) ->
       "{\n" ^ String.concat "" (List.map string_of_sstmt stmts) ^ "}\n"
-  | SExpr(sexpr) -> string_of_sexpr sexpr ^ ";\n";
-  | SReturn(sexpr) -> "return " ^ string_of_sexpr sexpr ^ ";\n";
+  | SExpr(expr) -> string_of_sexpr expr ^ ";\n";
+  | SReturn(expr) -> "return " ^ string_of_sexpr expr ^ ";\n";
   | SIf(e, s, SBlock([])) ->
       "if (" ^ string_of_sexpr e ^ ")\n" ^ string_of_sstmt s
   | SIf(e, s1, s2) ->  "if (" ^ string_of_sexpr e ^ ")\n" ^
@@ -140,4 +74,4 @@ let string_of_sfdecl fdecl =
 
 let string_of_sprogram (vars, funcs) =
   String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
-  String.concat "\n" (List.map string_of_sfdecl funcs) *)
+  String.concat "\n" (List.map string_of_sfdecl funcs)

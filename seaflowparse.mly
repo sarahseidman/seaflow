@@ -12,6 +12,7 @@ open Ast
 %token <char> CHLIT
 %token EOF
 
+
 %start program
 %type <Ast.program> program
 
@@ -88,7 +89,7 @@ typ:
   | VOID    { Void  }
   | CHAR    { Char }
   | typ LBRAKT RBRAKT { Arr($1) }             /* array */
-  //| STRUCT SID        { Struct($2) }          /* struct */
+  | STRUCT SID        { Struct($2) }          /* struct */
   | LPAREN typ_list RPAREN ARROW LPAREN typ RPAREN { Func(List.rev $2, $6) } /* for higher order function */
 
 typ_list:

@@ -4,6 +4,9 @@
 
 let digit = ['0' - '9']
 let char = ['a'-'z'] | ['A'-'Z'] | ['0'-'9']
+let charlit = '\''['\x00'-'\x7F']'\''
+(* let charlit = '\''(['a'-'z'] | ['A'-'Z'] | ['0'-'9'])'\'' *)
+(* [\x00-\x7F] *)
 let digits = digit+
 
 rule token = parse
@@ -38,7 +41,7 @@ rule token = parse
 | "float"  { FLOAT }
 | "char"   { CHAR }
 | "void"   { VOID }
-| char as lxm { CHLIT(lxm)}
+| charlit as lxm { CHLIT(lxm.[1])}
 | digits as lxm { LITERAL(int_of_string lxm) }
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
 | ['a'-'z']['a'-'z' 'A'-'Z' '0'-'9' '_']*             as lxm { ID(lxm) }

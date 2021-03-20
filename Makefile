@@ -27,17 +27,20 @@ microc.native :
 clean :
 	ocamlbuild -clean
 	rm -rf testall.log ocamlllvm *.diff
+	rm -f *.cmo
 
 .PHONY : intermediate
 intermediate :
 	ocamllex scanner.mll
 	ocamlyacc seaflowparse.mly
 	ocamlc -c ast.ml
+	ocamlc -c sast.ml
 	ocamlc -c seaflowparse.mli
 	ocamlc -c scanner.ml
 	ocamlc -c seaflowparse.ml
+	ocamlc -c semant.ml
 	ocamlc -c seaflow.ml
-	ocamlc -o seaflow seaflowparse.cmo scanner.cmo seaflow.cmo
+	ocamlc -o seaflow seaflowparse.cmo scanner.cmo seaflow.cmo sast.cmo semant.cmo
 
 	
 # Testing the "printbig" example
