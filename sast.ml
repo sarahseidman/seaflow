@@ -75,11 +75,11 @@ type sfunc_decl = {
 
 type sobs_stmt = 
     SObs of string 
-  | SExpr of sexpr
-  | SDecl of typ * string * sexpr
-  | SAssign of string * sexpr (* type?? *)
-  | SArr_Decl of typ * string * sexpr list
-  | SStr_Decl of typ * string * sexpr list
+  | SOExpr of sexpr
+  | SODecl of typ * string * sexpr
+  | SOAssign of string * sexpr (* type?? *)
+  | SOArr_Decl of typ * string * sexpr list
+  | SOStr_Decl of typ * string * sexpr list
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }

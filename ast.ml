@@ -49,11 +49,11 @@ type func_decl = {
 
 type obs_stmt = 
     Obs of string 
-  | Expr of expr
-  | Decl of typ * string * expr
-  | Assign of string * expr (* type?? *)
-  | Arr_Decl of typ * string * expr list
-  | Str_Decl of typ * string * expr list
+  | OExpr of expr
+  | ODecl of typ * string * expr
+  | OAssign of string * expr (* type?? *)
+  | OArr_Decl of typ * string * expr list
+  | OStr_Decl of typ * string * expr list
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }

@@ -1,4 +1,4 @@
-(* Top-level of the Seaflow compiler: scan & parse the input,
+(* Top-level of the MicroC compiler: scan & parse the input,
    check the resulting AST and generate an SAST from it, generate LLVM IR,
    and dump the module *)
 
@@ -19,18 +19,15 @@ let () =
   Arg.parse speclist (fun filename -> channel := open_in filename) usage_msg;
   
   let lexbuf = Lexing.from_channel !channel in
-  let ast = Seaflowparse.program Scanner.token lexbuf in  
+  let ast = Seaflowparse.program Scanner.token lexbuf in
   match !action with
-    Ast -> print_string "AST" (*(Ast.string_of_program ast)*)
-  (* | Compile -> let m = Codegen.translate ast in
-  Llvm_analysis.assert_valid_module m;
-  print_string (Llvm.string_of_llmodule m) *)
+    Ast -> print_string "AST\n"
+  (* | _ -> raise (Failure "Not Implemented") *)
   | _ -> let sast = Semant.check ast in
     match !action with
       Ast     -> ()
-    | Sast    -> print_string "SAST" (*(Sast.string_of_sprogram sast)*)
-    | LLVM_IR -> print_string "LLVM_IR" (Llvm.string_of_llmodule (Codegen.translate sast))
-    | Compile -> let m = Codegen.translate ast in
-	Llvm_analysis.assert_valid_module m;
-	print_string (Llvm.string_of_llmodule m)
-
+    | Sast    -> print_string "SAST\n"
+    | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate sast))
+    | Compile -> let m = Codegen.translate sast in
+  Llvm_analysis.assert_valid_module m;
+  print_string (Llvm.string_of_llmodule m)

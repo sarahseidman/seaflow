@@ -120,15 +120,15 @@ stmt:
 
 
 obs_stmt:
-    obs_expr SEMI                             { Expr $1 }
-  | OBS ASSIGN expr SEMI                      { Assign($1, $3)         }
-  | OBS ASSIGN obs_expr SEMI                  { Assign($1, $3) }
+    obs_expr SEMI                             { OExpr $1 }
+  | OBS ASSIGN expr SEMI                      { OAssign($1, $3)         }
+  | OBS ASSIGN obs_expr SEMI                  { OAssign($1, $3) }
 // odecl:
   | typ OBS SEMI                              { Obs($2) }
-  | typ OBS ASSIGN expr SEMI                  { Decl($1, $2, $4) }
-  | typ OBS ASSIGN obs_expr SEMI              { Decl($1, $2, $4) }
-  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
-  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Decl($1, $2, List.rev $5) }
+  | typ OBS ASSIGN expr SEMI                  { ODecl($1, $2, $4) }
+  | typ OBS ASSIGN obs_expr SEMI              { ODecl($1, $2, $4) }
+  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { OStr_Decl($1, $2, List.rev $5) }
+  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl($1, $2, List.rev $5) }
 
 expr_opt:
     /* nothing */ { Noexpr }
