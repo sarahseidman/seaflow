@@ -42,7 +42,6 @@ type func_decl = {
     typ : typ;
     fname : string;
     formals : bind list;
-    (* locals : bind list; *)
     body : stmt list;
   }
 
@@ -51,7 +50,7 @@ type obs_stmt =
     Obs of string 
   | OExpr of expr
   | ODecl of typ * string * expr
-  | OAssign of string * expr (* type?? *)
+  | OAssign of string * expr
   | OArr_Decl of typ * string * expr list
   | OStr_Decl of typ * string * expr list
   (* glob_line:
@@ -72,9 +71,23 @@ type glob =
 
 type program = glob list
 
+
 (* Pretty-printing functions *)
 
-(* 
+let rec string_of_typ = function
+    Int -> "int"
+  | Float -> "float"
+  | Void -> "void"
+  | Char -> "char"
+  | Arr(typ) -> string_of_typ typ ^ "[]"
+  | Struct(str) -> "struct " ^ str
+  | Func(typ_list, typ) -> "(" ^
+      String.concat ", " (List.map string_of_typ typ_list)
+      ^ ") -> (" ^ string_of_typ typ ^ ")"
+
+let string_of_bind (t, id) = string_of_typ t ^ " " ^ id ^ ";"
+let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
+
 let string_of_op = function
     Add -> "+"
   | Sub -> "-"
@@ -95,44 +108,61 @@ let string_of_uop = function
 let rec string_of_expr = function
     Literal(l) -> string_of_int l
   | Fliteral(l) -> l
+  | Chliteral(l) -> "'" ^ String.make 1 l ^ "'"
   | Id(s) -> s
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
-  | Assign(v, e) -> v ^ " = " ^ string_of_expr e
   | Call(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+  | Ref(e, str_list) -> "[ref not yet parsed]"
+  | Arr_Ref(s, e) -> s ^ "[" ^ string_of_expr e ^ "]"
+  | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
+      ^ string_of_expr e3
+  | Anon(bind_list, stmt_list) -> "(" ^ 
+      String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
+      String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
   | Noexpr -> ""
+  | Void -> ""
 
-let rec string_of_stmt = function
+and
+
+string_of_stmt = function
     Block(stmts) ->
       "{\n" ^ String.concat "" (List.map string_of_stmt stmts) ^ "}\n"
   | Expr(expr) -> string_of_expr expr ^ ";\n";
   | Return(expr) -> "return " ^ string_of_expr expr ^ ";\n";
-  | If(e, s, Block([])) -> "if (" ^ string_of_expr e ^ ")\n" ^ string_of_stmt s
-  | If(e, s1, s2) ->  "if (" ^ string_of_expr e ^ ")\n" ^
-      string_of_stmt s1 ^ "else\n" ^ string_of_stmt s2
-  | For(e1, e2, e3, s) ->
-      "for (" ^ string_of_expr e1  ^ " ; " ^ string_of_expr e2 ^ " ; " ^
-      string_of_expr e3  ^ ") " ^ string_of_stmt s
-  | While(e, s) -> "while (" ^ string_of_expr e ^ ") " ^ string_of_stmt s
+  | Print(expr) -> "print(" ^ string_of_expr expr ^ ");\n"
+  | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
+  | Arr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^ 
+      String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
+  | Str_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
+      String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
+  | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
+      String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 
-let string_of_typ = function
-    Int -> "int"
-  | Bool -> "bool"
-  | Float -> "float"
-  | Void -> "void"
+let string_of_obs_stmt = function
+    Obs(s) -> "type? " ^ s ^ ";\n"
+  | OExpr(e) -> string_of_expr e ^ ";\n"
+  | ODecl(t, s, e) -> string_of_typ t ^ " " ^ s ^ " = " ^ string_of_expr e ^ ";\n"
+  | OAssign(s, e) -> s ^ " = " ^ string_of_expr e ^ ";\n"
+  | OArr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^
+      String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
+  | OStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
+      String.concat ", " (List.map string_of_expr expr_list) ^ "};\n" 
 
-let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 
 let string_of_fdecl fdecl =
   string_of_typ fdecl.typ ^ " " ^
   fdecl.fname ^ "(" ^ String.concat ", " (List.map snd fdecl.formals) ^
   ")\n{\n" ^
-  String.concat "" (List.map string_of_vdecl fdecl.locals) ^
   String.concat "" (List.map string_of_stmt fdecl.body) ^
   "}\n"
 
-let string_of_program (vars, funcs) =
-  String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
-  String.concat "\n" (List.map string_of_fdecl funcs) *)
+let str_of_glob = function
+  Stmt(stmt) -> string_of_stmt stmt
+  | Fdecl(func_decl) -> string_of_fdecl func_decl
+  | Obs_Stmt(obs_stmt) -> string_of_obs_stmt obs_stmt
+
+let string_of_program (globs) = 
+  String.concat "" (List.map str_of_glob globs) ^ "\n"

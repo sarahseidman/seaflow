@@ -41,6 +41,7 @@ rule token = parse
 | "float"  { FLOAT }
 | "char"   { CHAR }
 | "void"   { VOID }
+| "struct" { STRUCT }
 | charlit as lxm { CHLIT(lxm.[1])}
 | digits as lxm { LITERAL(int_of_string lxm) }
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
