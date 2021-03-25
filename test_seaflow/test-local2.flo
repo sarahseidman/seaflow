@@ -1,0 +1,17 @@
+int foo(int a, char b)
+{
+  int c;
+  char d;
+
+  c = a;
+
+  return c + 10;
+}
+
+int bar()
+{
+ printi(foo(37, 's'));
+ return 0;
+}
+
+bar();
