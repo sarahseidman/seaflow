@@ -1,0 +1,25 @@
+int ops2()
+{
+  int a = if (1 == 1 && 1 == 1) 1 else 0;
+  printi(a);
+  int b = if (1 == 1 && 1 != 1) 1 else 0;
+  printi(b);
+  int c = if (1 != 1 && 1 == 1) 1 else 0;
+  printi(c);
+  int d = if (1 != 1 && 1 != 1) 1 else 0;
+  printi(d);
+  int e = if (1 == 1 || 1 == 1) 1 else 0;
+  printi(e);
+  int f = if (1 == 1 || 1 != 1) 1 else 0;
+  printi(f);
+  int g = if (1 != 1 || 1 == 1) 1 else 0;
+  printi(g);
+  int h = if (1 != 1 || 1 != 1) 1 else 0;
+  printi(h);
+  /* printb(!false); */
+  /* printb(!true); */
+  printi(-10);
+  printi(--42);
+}
+
+ops2();

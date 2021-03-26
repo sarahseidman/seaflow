@@ -1,0 +1,44 @@
+int ops()
+{
+  printi(1 + 2);
+  printi(1 - 2);
+  printi(1 * 2);
+  printi(100 / 2);
+  printi(99);
+  int a = if (1 == 2) 1 else 0;
+  printi(a);
+  int b = if (1 == 1) 1 else 0;
+  printi(b);
+  printi(99);
+  int c = if (1 != 2) 1 else 0;
+  printi(c);
+  int d = if (1 != 1) 1 else 0;
+  printi(d);
+  printi(99);
+  int e = if (1 < 2) 1 else 0;
+  printi(e);
+  int f = if (2 < 1) 1 else 0;
+  printi(f);
+  print(99);
+  int g = if (1 <= 2) 1 else 0;
+  printi(g);
+  int h = if (1 <= 1) 1 else 0;
+  printi(h);
+  int i = if (2 <= 1) 1 else 0;
+  printi(i);
+  printi(99);
+  int j = if (1 > 2) 1 else 0;
+  printi(j);
+  int k = if (2 > 1) 1 else 0;
+  printi(k);
+  printi(99);
+  int l = if (1 >= 2) 1 else 0;
+  printi(l);
+  int m = if (1 >= 1) 1 else 0;
+  printi(m);
+  int n = if (2 >= 1) 1 else 0;
+  printi(n); 
+  return 0;
+}
+
+ops();
