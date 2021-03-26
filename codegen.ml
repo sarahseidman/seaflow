@@ -16,7 +16,14 @@ module L = Llvm
 module A = Ast
 open Sast 
 
-module StringMap = Map.Make(String)
+module StringHash = Hashtbl.Make(struct
+  type t = string
+  let equal x y = x = y
+  let hash = Hashtbl.hash
+end)
+
+let global_vars = StringHash.create 10
+let global_funcs = StringHash.create 10
 
 (* translate : Sast.program -> Llvm.module *)
 let translate (globs) =
@@ -48,13 +55,13 @@ let translate (globs) =
     L.declare_function "printf" printf_t the_module in (* L.declare_function returns the function if it already exits in the module *)
 
 
-  let global_vars : L.llvalue StringMap.t = StringMap.empty in
+  (* let global_vars : L.llvalue StringMap.t = StringMap.empty in *)
 
-  let global_funcs : L.llvalue StringMap.t = StringMap.empty in
+  (* let global_funcs : L.llvalue StringMap.t = StringMap.empty in *)
 
   let main_ftype = L.function_type i32_t [| |] in
   let main_function = L.define_function "main" main_ftype the_module in
-  let _ = StringMap.add "main" (main_function, ()), global_funcs in
+  let _ = StringHash.add global_funcs "main" (main_function, ())  in
 
   let global_builder = L.builder_at_end context (L.entry_block main_function) in
 
@@ -66,8 +73,8 @@ let translate (globs) =
       | A.Char  -> L.const_int i8_t 0
     in 
     let store = L.define_global s init the_module in
-    let _ = StringMap.add s store global_vars in
-    L.build_store v store builder
+    (* let () = printf "function name= %s wo\n%!" s in *)
+    L.build_store v store builder ; StringHash.add global_vars s store
   in
 
   (* LLVM insists each basic block end with exactly one "terminator" 
@@ -85,7 +92,7 @@ let translate (globs) =
 
 
   
-  let lookup n = try StringMap.find n global_vars
+  let lookup n = try StringHash.find global_vars n
                  with Not_found -> raise (Failure "Variable not found")
   in
 
@@ -104,6 +111,7 @@ let translate (globs) =
     | SCall("printf", [e]) ->
         L.build_call printf_func [| float_format_str builder; (expr builder e) |]
           "printf" builder
+    | SCall(n, args) -> print_endline n ; L.const_int i32_t 5
     | _ -> raise (Failure "Not Implemented 2003")
   in
     
@@ -111,7 +119,7 @@ let translate (globs) =
   let build_global_stmt builder = function
       SExpr e -> ignore(expr builder e); builder
     | SDecl(t, s, e) -> let e' = expr builder e in
-        ignore(add_global_var (t, s, e', builder)); builder
+        let _ = add_global_var (t, s, e', builder) in builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
   in

@@ -5,6 +5,15 @@ open Sast
 
 module StringMap = Map.Make(String)
 
+module StringHash = Hashtbl.Make(struct
+  type t = string
+  let equal x y = x = y
+  let hash = Hashtbl.hash
+end)
+
+let global_vars = StringHash.create 10
+let function_decls = StringHash.create 10
+
 (* Semantic checking of the AST. Returns an SAST if successful,
    throws an exception if something is wrong.
 
@@ -26,32 +35,34 @@ let check (globs) =
                                                  ("printc", Char) ]
   in
 
-  let add_func map fd = 
+  let add_func fd = 
     let built_in_err = "function " ^ fd.fname ^ " may not be defined"
     and dup_err = "duplicate function " ^ fd.fname
     and make_err er = raise (Failure er)
     and n = fd.fname (* Name of the function *)
     in match fd with (* No duplicate functions or redefinitions of built-ins *)
          _ when StringMap.mem n built_in_decls -> make_err built_in_err
-       | _ when StringMap.mem n map -> make_err dup_err  
-       | _ ->  StringMap.add n fd map 
+       | _ when StringHash.mem function_decls n -> make_err dup_err  
+       | _ ->  StringHash.add function_decls n fd
   in
 
-  let function_decls = List.fold_left add_func built_in_decls []
-  in
+  (* let function_decls = List.fold_left ad2d_func built_in_decls []
+  in *)
 
   (* Return a function from our symbol table *)
   let find_func s = 
-    try StringMap.find s function_decls
-    with Not_found -> raise (Failure ("unrecognized function " ^ s))
+    try StringHash.find function_decls s
+    with Not_found -> try StringMap.find s built_in_decls
+      with Not_found ->
+        raise (Failure ("unrecognized function " ^ s))
   in
 
 
 
-  let global_vars = StringMap.empty in
+  (* let global_vars = StringMap.empty in *)
 
   let type_of_identifier s =
-    try StringMap.find s global_vars
+    try StringHash.find global_vars s
     with Not_found -> raise (Failure ("undeclared identifier " ^ s))
   in
 
@@ -105,7 +116,7 @@ let check (globs) =
       let (rt, e') = expr e in
       let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
         string_of_typ rt ^  in  ^ string_of_expr ex" in
-      let _ = StringMap.add var lt global_vars in
+      StringHash.add global_vars var lt ;
       (*(check_assign lt rt err, *) SDecl(lt, var, (rt, e'))
     | Return e -> let (t, e') = expr e
       in SReturn (t, e') 
