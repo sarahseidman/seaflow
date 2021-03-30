@@ -1,5 +1,7 @@
+(*
 int ops()
 {
+*)
   printi(1 + 2);
   printi(1 - 2);
   printi(1 * 2);
@@ -38,7 +40,10 @@ int ops()
   printi(m);
   int n = if (2 >= 1) 1 else 0;
   printi(n); 
+
+(*
   return 0;
 }
 
 ops();
+*)

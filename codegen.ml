@@ -23,7 +23,7 @@ module StringHash = Hashtbl.Make(struct
 end)
 
 let global_vars = StringHash.create 10
-let global_funcs = StringHash.create 10
+let global_funcs : (L.llvalue * Sast.sfunc_decl) StringHash.t = StringHash.create 10
 
 (* translate : Sast.program -> Llvm.module *)
 let translate (globs) =
@@ -61,7 +61,18 @@ let translate (globs) =
 
   let main_ftype = L.function_type i32_t [| |] in
   let main_function = L.define_function "main" main_ftype the_module in
-  let _ = StringHash.add global_funcs "main" (main_function, ())  in
+  (* let _ = StringHash.add global_funcs "main" (main_function, ()) in *)
+(*   
+  {
+    styp : typ;
+    sfname : string;
+    sformals : bind list;
+    (* locals : bind list; *)
+    sbody : sstmt list;
+  } 
+  {A.Int,"main",()}
+  *)
+
 
   let global_builder = L.builder_at_end context (L.entry_block main_function) in
 
@@ -111,7 +122,14 @@ let translate (globs) =
     | SCall("printf", [e]) ->
         L.build_call printf_func [| float_format_str builder; (expr builder e) |]
           "printf" builder
-    | SCall(n, args) -> print_endline n ; L.const_int i32_t 5
+    (* | SCall(n, args) -> print_endline n ; L.const_int i32_t 5 *)
+    | SCall (f, args) ->
+      let (fdef, fdecl) = StringHash.find global_funcs f in
+      let llargs = List.rev (List.map (expr builder) (List.rev args)) in
+      let result = (match fdecl.styp with 
+                     A.Void -> ""
+                   | _ -> f ^ "_result") in
+      L.build_call fdef (Array.of_list llargs) result builder
     | _ -> raise (Failure "Not Implemented 2003")
   in
     
@@ -124,10 +142,102 @@ let translate (globs) =
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
   in
 
+  (* Define each function (arguments and return type) so we can 
+  call it even before we've created its body *)
+  let build_function fdecl =
+    let name = fdecl.sfname
+      and formal_types = 
+        Array.of_list (List.map (fun (t,_) -> ltype_of_typ t) fdecl.sformals)
+    in 
+    let ftype = L.function_type (ltype_of_typ fdecl.styp) formal_types in
+    let the_function = L.define_function name ftype the_module in
+    let () = StringHash.add global_funcs name (the_function, fdecl) in
+    let local_builder = L.builder_at_end context (L.entry_block the_function) in
+  
+
+    (* let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
+    and float_format_str = L.build_global_stringptr "%g\n" "fmt" builder in *)
+        
+
+    let local_vars = StringHash.create 10 in
+    let add_formal (t, n) p = 
+      L.set_value_name n p;
+      let local = L.build_alloca (ltype_of_typ t) n local_builder in
+      ignore (L.build_store p local local_builder);
+      StringHash.add local_vars n local
+    in
+
+    let add_local (t, n) =
+      let local = L.build_alloca (ltype_of_typ t) n local_builder in
+      StringHash.add local_vars n local
+    in
+
+    (* let _ = List.fold_left2 add_formal fdecl.sformals 
+      (Array.to_list (L.params the_function)) 
+    in *)
+
+    let _ = List.iter2 add_formal fdecl.sformals 
+      (Array.to_list (L.params the_function)) 
+    in
+  
+        
+    let build_local_stmt builder = function
+        SExpr e -> ignore(expr builder e)
+      (* | SDecl(t, s, e) -> let e' = expr builder e in
+          let _ = add_local (t, s, e', builder) in builder *)
+      | SReturn e -> ignore(match fdecl.styp with
+                (* Special "return nothing" instr *)
+                A.Void -> L.build_ret_void builder 
+                (* Build return statement *)
+              | _ -> L.build_ret (expr builder e) builder ) 
+      | _ -> raise (Failure "Not Implemented 2002")
+        (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
+      in
+
+    List.iter (build_local_stmt local_builder) fdecl.sbody
+
+  in
+
+
+    (* let local_vars =
+      let add_formal m (t, n) p = 
+        L.set_value_name n p;
+        let local = L.build_alloca (ltype_of_typ t) n builder in
+        ignore (L.build_store p local builder);
+        StringMap.add n local m 
+
+      (* Allocate space for any locally declared variables and add the
+       * resulting registers to our map *)
+      and add_local m (t, n) =
+        let local_var = L.build_alloca (ltype_of_typ t) n builder
+        in StringMap.add n local_var m 
+      in
+
+      let formals = List.fold_left2 add_formal StringMap.empty fdecl.sformals
+          (Array.to_list (L.params the_function)) in
+      List.fold_left add_local formals fdecl.slocals 
+    in *)
+
+
+
+  (* let build_global_func fdecl =
+    function_decl fdecl *)
+
+
+  (* SFdecl = {
+    styp : typ;
+    sfname : string;
+    sformals : bind list;
+    (* locals : bind list; *)
+    sbody : sstmt list;
+  } *)
+
+
   let translate_line glob = match glob with
         SStmt stmt -> ignore(build_global_stmt global_builder stmt)
       | SObs_Stmt obs_stmt -> raise (Failure "Not Implemented 2000")
-      | SFdecl func -> raise (Failure "Not Implemented 2001") 
+      | SFdecl func -> ignore(build_function func)
+
   in 
   let () = List.iter translate_line globs in
   let () = add_terminal global_builder (L.build_ret (L.const_int i32_t 0)) in

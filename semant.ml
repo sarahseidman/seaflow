@@ -32,7 +32,7 @@ let check (globs) =
     in List.fold_left add_bind StringMap.empty [ ("printi", Int);
                                                  ("printf", Float);
                                                  ("printbig", Int);
-                                                 ("printc", Char) ]
+                                                 ("printc", Char); ]
   in
 
   let add_func fd = 
