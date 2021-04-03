@@ -1,0 +1,9 @@
+int foo(int a, char b, int c) {
+  return 0;
+}
+
+void bar(int a, char b, int a) {} /* Error: duplicate formal a in bar */
+
+int baz() {
+  return 0;
+}

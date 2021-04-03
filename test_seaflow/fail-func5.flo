@@ -1,0 +1,9 @@
+void foo(int a, char b) {}
+
+int bar() {
+  foo(42, 'c');
+  foo(42); /* Wrong number of arguments */
+  return 0;
+}
+
+bar();

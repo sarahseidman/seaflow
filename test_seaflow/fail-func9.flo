@@ -1,0 +1,16 @@
+int a;
+
+void foo(int c)
+{
+  a = c + 42;
+}
+
+int bar()
+{
+  foo(73);
+  foo(83); /* cannot assign global variable more than once */
+  printi(a);
+  return 0;
+}
+
+bar();

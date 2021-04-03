@@ -1,0 +1,11 @@
+void foo(int a, char b) {}
+
+void bar() {}
+
+int baz() {
+  foo(42, 'a');
+  foo(42, bar()); /* int and void, not int and char */
+  return 8;
+}
+
+baz();

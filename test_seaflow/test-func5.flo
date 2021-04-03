@@ -1,0 +1,11 @@
+int foo(int a)
+{
+  return a;
+}
+
+int bar()
+{
+  return 0;
+}
+
+bar();

@@ -1,0 +1,13 @@
+int foo() {
+  return 5;
+}
+
+void bar() {}
+
+void printi() {} /* Should not be able to define printi */
+
+void baz() {}
+
+int boo() {
+  return 0;
+}

@@ -1,0 +1,8 @@
+int c;
+char b;
+void a; /* global variables should not be void */
+
+
+int foo() {
+  return 0;
+}

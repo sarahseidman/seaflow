@@ -1,0 +1,13 @@
+int foo() {
+  return 5;
+}
+
+void bar() {}
+
+void printf() {} /* Should not be able to define printf */
+
+void baz() {}
+
+int boo() {
+  return 0;
+}
