@@ -2,3 +2,4 @@ void f() {
     printi(3);
     return;
 }
+f();

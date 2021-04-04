@@ -103,29 +103,46 @@ let translate (globs) =
 
 
   
-  let lookup n = try StringHash.find global_vars n
+  let lookup vars n = try StringHash.find vars n
                  with Not_found -> raise (Failure "Variable not found")
   in
 
   
-  let rec expr builder ((_, e) : sexpr) = match e with
+  let rec expr vars builder ((_, e) : sexpr) = match e with
       SLiteral i   -> L.const_int i32_t i
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
-    | SId s        -> L.build_load (lookup s) s builder
+    | SId s        -> L.build_load (lookup vars s) s builder
+    | SBinop (e1, op, e2) ->
+      let e1' = expr vars builder e1
+      and e2' = expr vars builder e2 in
+      (match op with
+        A.Add     -> L.build_add
+      | A.Sub     -> L.build_sub
+      | A.Mult    -> L.build_mul
+      | A.Div     -> L.build_sdiv
+      | A.And     -> L.build_and
+      | A.Or      -> L.build_or
+      | A.Equal   -> L.build_icmp L.Icmp.Eq
+      | A.Neq     -> L.build_icmp L.Icmp.Ne
+      | A.Less    -> L.build_icmp L.Icmp.Slt
+      | A.Leq     -> L.build_icmp L.Icmp.Sle
+      | A.Greater -> L.build_icmp L.Icmp.Sgt
+      | A.Geq     -> L.build_icmp L.Icmp.Sge
+      ) e1' e2' "tmp" builder
     | SCall("printi", [e]) ->
-        L.build_call printf_func [| int_format_str builder; (expr builder e) |]
+        L.build_call printf_func [| int_format_str builder; (expr vars builder e) |]
           "printf" builder
     | SCall("printc", [e]) ->
-        L.build_call printf_func [| char_format_str builder; (expr builder e) |]
+        L.build_call printf_func [| char_format_str builder; (expr vars builder e) |]
           "printf" builder
     | SCall("printf", [e]) ->
-        L.build_call printf_func [| float_format_str builder; (expr builder e) |]
+        L.build_call printf_func [| float_format_str builder; (expr vars builder e) |]
           "printf" builder
     (* | SCall(n, args) -> print_endline n ; L.const_int i32_t 5 *)
     | SCall (f, args) ->
       let (fdef, fdecl) = StringHash.find global_funcs f in
-      let llargs = List.rev (List.map (expr builder) (List.rev args)) in
+      let llargs = List.rev (List.map (expr vars builder) (List.rev args)) in
       let result = (match fdecl.styp with 
                      A.Void -> ""
                    | _ -> f ^ "_result") in
@@ -135,8 +152,8 @@ let translate (globs) =
     
   
   let build_global_stmt builder = function
-      SExpr e -> ignore(expr builder e); builder
-    | SDecl(t, s, e) -> let e' = expr builder e in
+      SExpr e -> ignore(expr global_vars builder e); builder
+    | SDecl(t, s, e) -> let e' = expr global_vars builder e in
         let _ = add_global_var (t, s, e', builder) in builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
@@ -144,7 +161,7 @@ let translate (globs) =
 
   (* Define each function (arguments and return type) so we can 
   call it even before we've created its body *)
-  let build_function fdecl =
+  let build_function (fdecl, local_vars) =
     let name = fdecl.sfname
       and formal_types = 
         Array.of_list (List.map (fun (t,_) -> ltype_of_typ t) fdecl.sformals)
@@ -159,7 +176,7 @@ let translate (globs) =
     and float_format_str = L.build_global_stringptr "%g\n" "fmt" builder in *)
         
 
-    let local_vars = StringHash.create 10 in
+    (* let local_vars = StringHash.create 10 in *)
     let add_formal (t, n) p = 
       L.set_value_name n p;
       let local = L.build_alloca (ltype_of_typ t) n local_builder in
@@ -172,9 +189,14 @@ let translate (globs) =
       StringHash.add local_vars n local
     in
 
-    (* let _ = List.fold_left2 add_formal fdecl.sformals 
-      (Array.to_list (L.params the_function)) 
-    in *)
+
+
+    let lookup_local n = try StringHash.find local_vars n
+          with Not_found -> 
+            try StringHash.find global_vars n
+              with Not_found -> raise (Failure "Variable not found")
+    in
+
 
     let _ = List.iter2 add_formal fdecl.sformals 
       (Array.to_list (L.params the_function)) 
@@ -182,20 +204,25 @@ let translate (globs) =
   
         
     let build_local_stmt builder = function
-        SExpr e -> ignore(expr builder e)
-      (* | SDecl(t, s, e) -> let e' = expr builder e in
-          let _ = add_local (t, s, e', builder) in builder *)
+        SExpr e -> ignore(expr local_vars builder e)
+      | SDecl(t, s, e) -> let e' = expr local_vars builder e in
+          ignore(add_formal (t, s) e')
+          (* ignore(add_local (t, s, e', builder)) *)
       | SReturn e -> ignore(match fdecl.styp with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder 
                 (* Build return statement *)
-              | _ -> L.build_ret (expr builder e) builder ) 
-      | _ -> raise (Failure "Not Implemented 2002")
+              | _ -> L.build_ret (expr local_vars builder e) builder ) 
+      | _ -> raise (Failure "Not Implemented 2005")
         (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
       in
 
-    List.iter (build_local_stmt local_builder) fdecl.sbody
+    List.iter (build_local_stmt local_builder) fdecl.sbody;
 
+    add_terminal local_builder (match fdecl.styp with
+            A.Void -> L.build_ret_void
+          | A.Float -> L.build_ret (L.const_float float_t 0.0)
+          | t -> L.build_ret (L.const_int (ltype_of_typ t) 0))
   in
 
 
@@ -236,7 +263,8 @@ let translate (globs) =
   let translate_line glob = match glob with
         SStmt stmt -> ignore(build_global_stmt global_builder stmt)
       | SObs_Stmt obs_stmt -> raise (Failure "Not Implemented 2000")
-      | SFdecl func -> ignore(build_function func)
+      | SFdecl func -> let top_local_vars = StringHash.create 10 in
+          ignore(build_function (func, top_local_vars))
 
   in 
   let () = List.iter translate_line globs in

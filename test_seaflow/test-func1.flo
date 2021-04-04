@@ -1,12 +1,12 @@
-int add(int a, int b)
+int add(int c, int b)
 {
-  return a + b;
+  return c + b;
 }
 
 int foo()
 {
-  int a;
-  a = add(39, 3);
+  /* int a; */
+  int a = add(39, 3);
   printi(a);
   return 0;
 }
