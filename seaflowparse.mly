@@ -142,6 +142,8 @@ expr:
   | id_var           { Id($1)                 }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
+  | expr MINUS  expr { Binop($1, Sub, $3)     }
+  | expr TIMES  expr { Binop($1, Mult, $3)     }
   | expr EQ     expr { Binop($1, Equal, $3)   }
   | expr NEQ    expr { Binop($1, Neq,   $3)   }
   | expr LT     expr { Binop($1, Less,  $3)   }
@@ -161,6 +163,8 @@ obs_expr:
   | obs_var              { Id($1) }
   | obs_expr PLUS   expr { Binop($1, Add,   $3)   }
   | obs_expr DIVIDE expr { Binop($1, Div,   $3)   }
+  | obs_expr MINUS  expr { Binop($1, Sub, $3)     }
+  | obs_expr TIMES  expr { Binop($1, Mult, $3)     }
   | obs_expr EQ     expr { Binop($1, Equal, $3)   }
   | obs_expr NEQ    expr { Binop($1, Neq,   $3)   }
   | obs_expr LT     expr { Binop($1, Less,  $3)   }
@@ -172,6 +176,8 @@ obs_expr:
 
   | expr PLUS   obs_expr { Binop($1, Add,   $3)   }
   | expr DIVIDE obs_expr { Binop($1, Div,   $3)   }
+  | expr MINUS  obs_expr { Binop($1, Sub, $3)     }
+  | expr TIMES  obs_expr { Binop($1, Mult, $3)     }
   | expr EQ     obs_expr { Binop($1, Equal, $3)   }
   | expr NEQ    obs_expr { Binop($1, Neq,   $3)   }
   | expr LT     obs_expr { Binop($1, Less,  $3)   }
@@ -183,6 +189,8 @@ obs_expr:
 
   | obs_expr PLUS   obs_expr { Binop($1, Add,   $3)   }
   | obs_expr DIVIDE obs_expr { Binop($1, Div,   $3)   }
+  | obs_expr MINUS  obs_expr { Binop($1, Sub, $3)     }
+  | obs_expr TIMES  obs_expr { Binop($1, Mult, $3)     }
   | obs_expr EQ     obs_expr { Binop($1, Equal, $3)   }
   | obs_expr NEQ    obs_expr { Binop($1, Neq,   $3)   }
   | obs_expr LT     obs_expr { Binop($1, Less,  $3)   }
