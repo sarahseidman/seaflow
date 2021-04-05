@@ -83,6 +83,18 @@ let check (globs) =
     | Chliteral c -> (Char, SChliteral c)
     | Id s       -> (type_of_identifier vars s, SId s)
     | Noexpr     -> (Void, SNoexpr)
+    | If (e1, e2, e3) ->
+        let (t1, e1') = expr vars e1
+        and (t2, e2') = expr vars e2
+        and (t3, e3') = expr vars e3 in
+        let same = t2 = t3 in
+        (* e2 and e3 must be same type *)
+        let ty = match t2 with
+          Int when same -> Int
+        | Float when same -> Float
+        | Char when same -> Char
+        | _ -> raise (Failure ("illegal if; types must match"))
+        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
     | Binop(e1, op, e2) as e -> 
         let (t1, e1') = expr vars e1 
         and (t2, e2') = expr vars e2 in
