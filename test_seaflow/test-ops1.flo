@@ -1,7 +1,5 @@
-(*
 int ops()
 {
-*)
   printi(1 + 2);
   printi(1 - 2);
   printi(1 * 2);
@@ -21,7 +19,7 @@ int ops()
   printi(e);
   int f = if (2 < 1) 1 else 0;
   printi(f);
-  print(99);
+  printi(99);
   int g = if (1 <= 2) 1 else 0;
   printi(g);
   int h = if (1 <= 1) 1 else 0;
@@ -38,12 +36,11 @@ int ops()
   printi(l);
   int m = if (1 >= 1) 1 else 0;
   printi(m);
-  int n = if (2 >= 1) 1 else 0;
-  printi(n); 
+  float n = if (2 >= 1) 1.0 else 2.0;
+  printf(n); 
 
-(*
+
   return 0;
 }
 
 ops();
-*)

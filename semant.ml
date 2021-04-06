@@ -104,14 +104,17 @@ let check (globs) =
         let ty = match op with
           Add | Sub | Mult | Div when same && t1 = Int   -> Int
         | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
         | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float) -> Int
+                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
         | And | Or when same && t1 = Int -> Int
         | _ -> raise (Failure ("illegal binary operator  ^
                                 string_of_typ t1 ^  ^ string_of_op op ^  ^
                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
         in (ty, SBinop((t1, e1'), op, (t2, e2')))
+    | Unop(op, e) -> 
+        let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
     | Call(fname, args) as call -> 
         let fd = find_func fname in
         let param_length = List.length fd.formals in
