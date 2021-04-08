@@ -113,6 +113,11 @@ let translate (globs) =
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
+    | SIf (e1, e2, e3) -> 
+      let e1' = expr vars builder e1
+      and e2' = expr vars builder e2
+      and e3' = expr vars builder e3 in
+      L.build_select e1' e2' e3' "tmp" builder
     | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in
@@ -130,6 +135,11 @@ let translate (globs) =
       | A.Greater -> L.build_icmp L.Icmp.Sgt
       | A.Geq     -> L.build_icmp L.Icmp.Sge
       ) e1' e2' "tmp" builder
+    | SUnop(op, ((t, _) as e)) ->
+      let e' = expr vars builder e in
+      (match op with
+        A.Neg when t = A.Float -> L.build_fneg 
+      | A.Neg                  -> L.build_neg) e' "tmp" builder
     | SCall("printi", [e]) ->
         L.build_call printf_func [| int_format_str builder; (expr vars builder e) |]
           "printf" builder

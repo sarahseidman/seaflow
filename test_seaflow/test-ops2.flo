@@ -20,6 +20,12 @@ int ops2()
   /* printb(!true); */
   printi(-10);
   printi(--42);
+
+  int j = if (0 > 2) 100 else if (0 > 2) 200 else 300;
+  printi(j);
+
+  char k = if ('c' > 'd') 'A' else if (0 > 2) 'B' else 'C';
+  printc(k);
 }
 
 ops2();

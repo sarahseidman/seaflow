@@ -83,6 +83,18 @@ let check (globs) =
     | Chliteral c -> (Char, SChliteral c)
     | Id s       -> (type_of_identifier vars s, SId s)
     | Noexpr     -> (Void, SNoexpr)
+    | If (e1, e2, e3) ->
+        let (t1, e1') = expr vars e1
+        and (t2, e2') = expr vars e2
+        and (t3, e3') = expr vars e3 in
+        let same = t2 = t3 in
+        (* e2 and e3 must be same type *)
+        let ty = match t2 with
+          Int when same -> Int
+        | Float when same -> Float
+        | Char when same -> Char
+        | _ -> raise (Failure ("illegal if; types must match"))
+        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
     | Binop(e1, op, e2) as e -> 
         let (t1, e1') = expr vars e1 
         and (t2, e2') = expr vars e2 in
@@ -92,14 +104,17 @@ let check (globs) =
         let ty = match op with
           Add | Sub | Mult | Div when same && t1 = Int   -> Int
         | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
         | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float) -> Int
+                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
         | And | Or when same && t1 = Int -> Int
         | _ -> raise (Failure ("illegal binary operator  ^
                                 string_of_typ t1 ^  ^ string_of_op op ^  ^
                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
         in (ty, SBinop((t1, e1'), op, (t2, e2')))
+    | Unop(op, e) -> 
+        let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
     | Call(fname, args) as call -> 
         let fd = find_func fname in
         let param_length = List.length fd.formals in
