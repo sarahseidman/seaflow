@@ -136,15 +136,16 @@ expr_opt:
 
 expr:
     LITERAL          { Literal($1)            }
-  | NULL             { Void }
+  | NULL             { Void                    }
   | FLIT             { Fliteral($1)           }
-  | CHLIT            { Chliteral($1) }
+  | CHLIT            { Chliteral($1)          }
   | ID               { Id($1)                 }
+  | SID              { Sid($1)                }
   | expr DOT ID      { Ref($1, $3)            }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
   | expr MINUS  expr { Binop($1, Sub, $3)     }
-  | expr TIMES  expr { Binop($1, Mult, $3)     }
+  | expr TIMES  expr { Binop($1, Mult, $3)    }
   | expr EQ     expr { Binop($1, Equal, $3)   }
   | expr NEQ    expr { Binop($1, Neq,   $3)   }
   | expr LT     expr { Binop($1, Less,  $3)   }

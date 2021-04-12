@@ -86,6 +86,7 @@ let check (globs) =
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
     | Id s       -> (type_of_identifier vars s, SId s)
+    | Sid s      -> (type_of_identifier vars s, SSid s)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
       let l = try StringHash.find struct_defs (string_of_typ t')
@@ -168,7 +169,8 @@ let check (globs) =
       let expr_list' = List.map (expr vars) expr_list
       in SStr_Decl(t, s, expr_list')
     | Str_Def(s, b_list) ->
-      let _ = StringHash.add struct_defs ("struct " ^ s) b_list in SStr_Def(s, b_list)
+      let _ = StringHash.add struct_defs ("struct " ^ s) b_list 
+      in SStr_Def(s, b_list)
     | Block sl -> 
       let rec check_stmt_list v = function
           [Return _ as s] -> [check_stmt v s]
