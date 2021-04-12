@@ -17,7 +17,7 @@ type expr =
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Call of string * expr list
-  | Ref of expr * string list
+  | Ref of expr * string
   | Arr_Ref of string * expr
   | If of expr * expr * expr
   | Anon of bind list * stmt list
@@ -115,7 +115,7 @@ let rec string_of_expr = function
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
-  | Ref(e, str_list) -> "[ref not yet parsed]"
+  | Ref(e, s) -> string_of_expr e ^ "." ^ s
   | Arr_Ref(s, e) -> s ^ "[" ^ string_of_expr e ^ "]"
   | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
       ^ string_of_expr e3
