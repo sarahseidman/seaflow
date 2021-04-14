@@ -17,7 +17,7 @@ type expr =
   | Sid of string
   | Binop of expr * op * expr
   | Unop of uop * expr
-  | Call of string * expr list
+  | Call of expr * expr list
   | Ref of expr * string
   | Arr_Ref of string * expr
   | If of expr * expr * expr
@@ -115,8 +115,8 @@ let rec string_of_expr = function
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
-  | Call(f, el) ->
-      f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+  | Call(ef, el) ->
+    string_of_expr ef ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Ref(e, s) -> string_of_expr e ^ "." ^ s
   | Arr_Ref(s, e) -> s ^ "[" ^ string_of_expr e ^ "]"
   | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "

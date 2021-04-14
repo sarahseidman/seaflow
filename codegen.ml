@@ -158,26 +158,26 @@ let translate (globs) =
       (match op with
         A.Neg when t = A.Float -> L.build_fneg
       | A.Neg                  -> L.build_neg) e' "tmp" builder
-    | SCall("printi", [e]) ->
+    | SBCall("printi", [e]) ->
         L.build_call printf_func [| int_format_str builder; (expr vars builder e) |]
           "printf" builder
-    | SCall("printc", [e]) ->
+    | SBCall("printc", [e]) ->
         L.build_call printf_func [| char_format_str builder; (expr vars builder e) |]
           "printf" builder
-    | SCall("printf", [e]) ->
+    | SBCall("printf", [e]) ->
         L.build_call printf_func [| float_format_str builder; (expr vars builder e) |]
           "printf" builder
     (* | SCall(n, args) -> print_endline n ; L.const_int i32_t 5 *)
-    | SCall (f, args) ->
-      let fdef = expr vars builder (A.Int, SId(f)) in
+    | SCall(f, args) ->
+      let fdef = expr vars builder f in
 
       (* let (fdef, fdecl) = StringHash.find global_funcs f in *)
       let llargs = List.rev (List.map (expr vars builder) (List.rev args)) in
       let result = (match tt with
                      A.Void -> ""
-                   | _ -> f ^ "_result") in
+                   | _ -> "f_result") in
       L.build_call fdef (Array.of_list llargs) result builder
-    | _ -> raise (Failure "Not Implemented 2003")
+    | _ as x -> raise (Failure ("Not Implemented 2003 " ^ (string_of_sexpr (tt, x))))
 
   (* Define each function (arguments and return type) so we can
   call it even before we've created its body *)

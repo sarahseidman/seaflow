@@ -11,8 +11,8 @@ and sx =
   | SSid of string
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
-  | SCall of string * sexpr list
-  (* | SRef of sexpr * string *)
+  | SCall of sexpr * sexpr list
+  | SBCall of string * sexpr list (* Built-in function call *)
   | SRef of string * string * string
   | SArr_Ref of string * sexpr
   | SIf of sexpr * sexpr * sexpr
@@ -79,8 +79,10 @@ let rec string_of_sexpr (t, e) =
   | SBinop(e1, o, e2) ->
       string_of_sexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_sexpr e2
   | SUnop(o, e) -> string_of_uop o ^ string_of_sexpr e
-  | SCall(f, el) ->
-      f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
+  | SCall(ef, el) ->
+      string_of_sexpr ef ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
+  | SBCall(s, el) -> (* Built-in function call *)
+      s ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SArr_Ref(s, e) -> s ^ "[" ^ string_of_sexpr e ^ "]"
   (* | SRef(e, _, s) -> string_of_sexpr e ^ "." ^ s *)
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2

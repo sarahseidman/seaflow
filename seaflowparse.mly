@@ -156,8 +156,9 @@ expr:
   | expr OR     expr { Binop($1, Or,    $3)   }
 
   | MINUS expr       { Unop(Neg, $2)          }
-  | ID LBRAKT expr RBRAKT { Arr_Ref($1, $3)   }
-  | ID LPAREN args_opt RPAREN { Call($1, $3)  }
+  | ID LBRAKT expr RBRAKT                     { Arr_Ref($1, $3)  }
+  | ID LPAREN args_opt RPAREN                 { Call(Id($1), $3) }
+  | LPAREN expr RPAREN LPAREN args_opt RPAREN { Call($2, $5)     }
   | LPAREN expr RPAREN { $2                   }
   | IF LPAREN expr RPAREN expr ELSE expr    { If($3, $5, $7) }
   | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { FuncExpr(List.rev $2, List.rev $6) }   /* anonymous function */

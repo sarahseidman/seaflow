@@ -138,12 +138,20 @@ let check (globs) =
         in (ty, SBinop((t1, e1'), op, (t2, e2')))
     | Unop(op, e) -> 
         let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
-    | Call(fname, args) as call -> 
+    | Call(f, args) as call -> 
+        let (t', f') = expr vars f in
         (* let fd = find_func vars fname in *)
-        let (formals, rtype) = match type_of_identifier vars fname with
+        (* let (formals, rtype) = match type_of_identifier vars fname with
           | Func(param_types, rtype) -> (param_types, rtype)
           | _ ->  raise (Failure ("must be Func type"))
+        in *)
+        
+
+        let (formals, rtype) = match t' with
+          | Func(formals, rtype) -> (formals, rtype) 
+          | _ ->  raise (Failure ("must be Func type"))
         in
+
         let param_length = List.length formals in
         if List.length args != param_length then
           raise (Failure ("expecting ^ string_of_int param_length ^ 
@@ -154,8 +162,12 @@ let check (globs) =
               expected  ^ string_of_typ ft ^  in  ^ string_of_expr e"
           in (check_assign ft et err, e')
         in 
-        let args' = List.map2 check_call formals args
-        in (rtype, SCall(fname, args'))
+        let args' = List.map2 check_call formals args in
+        (match f' with
+          | SId(x) when x = "printi"
+            || x = "printc"
+            || x = "printf" -> (rtype, SBCall(x, args'))
+          | _ as x                   -> (rtype, SCall((t', x), args')))
     | FuncExpr(params, stmts) ->
         let (ftype, rtype, sstmts) = check_func_decl vars (params, stmts) in
         (ftype, SFuncExpr(params, rtype, sstmts))
