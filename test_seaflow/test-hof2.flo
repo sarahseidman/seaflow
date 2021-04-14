@@ -1,0 +1,15 @@
+int some(int x)
+{
+    return 1 + x;
+}
+
+(int)->(int) increment = some;
+
+((int)->(int), int)->(int) apply = ((int)->(int) f, int x) -> {
+    (int) -> (int) local = (int y) -> {
+        return y * 100;
+    };
+    return local(f(x));
+};
+
+printi(apply(increment, 4));

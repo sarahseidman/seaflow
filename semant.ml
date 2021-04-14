@@ -3,6 +3,7 @@
 open Ast
 open Sast
 open Printf
+open Utils
 
 module StringMap = Map.Make(String)
 
@@ -13,7 +14,7 @@ module StringHash = Hashtbl.Make(struct
 end)
 
 let global_vars = StringHash.create 10
-let function_decls = StringHash.create 10
+(* let function_decls = StringHash.create 10 *)
 let struct_defs = StringHash.create 10
 
 (* Semantic checking of the AST. Returns an SAST if successful,
@@ -33,6 +34,11 @@ let check (globs) =
     StringHash.iter (fun x _ -> Printf.printf "  %s\n" x) ht
   in
 
+  let _ = StringHash.add global_vars "printi" (Func([Int], Void)) in
+  let _ = StringHash.add global_vars "printf" (Func([Int], Float)) in
+  let _ = StringHash.add global_vars "printc" (Func([Int], Char)) in
+
+  (*
   let built_in_decls = 
     let add_bind map (name, ty) = StringMap.add name {
       typ = Void;
@@ -65,9 +71,7 @@ let check (globs) =
     with Not_found -> try StringMap.find s built_in_decls
       with Not_found ->
         raise (Failure ("unrecognized function " ^ s))
-  in
-
-
+  in *)
 
   (* let global_vars = StringMap.empty in *)
 
@@ -129,23 +133,27 @@ let check (globs) =
     | Unop(op, e) -> 
         let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
     | Call(fname, args) as call -> 
-        let fd = find_func fname in
-        let param_length = List.length fd.formals in
+        (* let fd = find_func vars fname in *)
+        let (formals, rtype) = match type_of_identifier vars fname with
+          | Func(param_types, rtype) -> (param_types, rtype)
+          | _ ->  raise (Failure ("must be Func type"))
+        in
+        let param_length = List.length formals in
         if List.length args != param_length then
           raise (Failure ("expecting ^ string_of_int param_length ^ 
                             arguments in  ^ string_of_expr call"))
-        else let check_call (ft, _) e = 
+        else let check_call ft e = 
           let (et, e') = expr vars e in 
           let err = "illegal argument found  ^ string_of_typ et ^
               expected  ^ string_of_typ ft ^  in  ^ string_of_expr e"
           in (check_assign ft et err, e')
         in 
-        let args' = List.map2 check_call fd.formals args
-        in (fd.typ, SCall(fname, args'))
-  in
-
-
-  let rec check_stmt vars = function
+        let args' = List.map2 check_call formals args
+        in (rtype, SCall(fname, args'))
+    | FuncExpr(params, stmts) ->
+        let (ftype, rtype, sstmts) = check_func_decl vars (params, stmts) in
+        (ftype, SFuncExpr(params, rtype, sstmts))
+  and check_stmt vars = function
       Expr e -> SExpr (expr vars e)
     | Decl(lt, var, e) as ex -> 
       let (rt, e') = expr vars e in
@@ -177,6 +185,29 @@ let check (globs) =
         | s :: ss         -> let parsed_stmt = check_stmt v s in parsed_stmt :: check_stmt_list v ss
         | []              -> []
       in SBlock(check_stmt_list vars sl)
+
+
+  and check_func_decl vars anon_func : (Ast.typ * Ast.typ * Sast.sstmt list) = 
+    let (params, body) = anon_func in
+
+    let local_vars = StringHash.copy vars in
+    let add_to_hash (vtype, vname) =
+      StringHash.add local_vars vname vtype
+    in
+    List.iter add_to_hash params;
+
+    let sbody = match check_stmt local_vars (Block body) with
+        SBlock(sl) -> sl
+      | _ -> raise (Failure ("internal error2: block didn't become a block?"))
+    in
+
+    let param_types = List.map fst params in
+
+    let rtype = match list_last sbody with
+      | SReturn(t, e) -> t
+      | _ -> Void
+    in
+    (Func(param_types, rtype), rtype, sbody)
   in
 
 
@@ -186,32 +217,18 @@ let check (globs) =
   in
 
 
-  let check_func_decl vars func =
-    let local_vars = StringHash.copy vars in
+  let fdecl_to_assign_stmt vars func =
+    let (func_type, rtype, sstmt) = check_func_decl vars (func.formals, func.body) in
 
-    (* List.iter StringHash.add func.formals *)
-
-    let add_to_hash (vtype, vname) =
-      StringHash.add local_vars vname vtype
-    in
-    List.iter add_to_hash func.formals;
-    
-    { styp = func.typ;
-      sfname = func.fname;
-      sformals = func.formals;
-      (* slocals  = func.locals; *)
-      sbody = match check_stmt local_vars (Block func.body) with
-          SBlock(sl) -> sl
-        | _ -> raise (Failure ("internal error: block didn't become a block?"))
-    }
+    StringHash.add vars func.fname func_type;
+    SDecl(func_type, func.fname, (func_type, SFuncExpr(func.formals, rtype, sstmt)))
   in
-
-  
 
   let check_glob glob = match glob with
       Stmt stmt -> SStmt(check_stmt global_vars stmt)
     | Obs_Stmt obs_stmt -> SObs_Stmt(check_obs_stmt obs_stmt)
-    | Fdecl func -> add_func func ; SFdecl(check_func_decl global_vars func)
+    | Fdecl func -> SStmt(fdecl_to_assign_stmt global_vars func)
+    (* | Fdecl func -> add_func func ; SFdecl(check_func_decl global_vars func) *)
 
 
   in (List.map check_glob globs)

@@ -18,6 +18,7 @@ rule token = parse
 | '}'      { RBRACE }
 | '['      { LBRAKT }
 | ']'      { RBRAKT }
+| "->"     { ARROW }
 | '.'      { DOT }
 | ';'      { SEMI }
 | ','      { COMMA }
