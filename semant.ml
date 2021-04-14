@@ -89,13 +89,14 @@ let check (globs) =
     | Sid s      -> (type_of_identifier vars s, SSid s)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
+      let str_name = SSid(string_of_expr e) in
       let l = try StringHash.find struct_defs (string_of_typ t')
         with Not_found -> raise (Failure (string_of_expr e ^ " is not a struct")) in
       let element = List.find_opt (match_struct_element_name s) l in
       let element_type = match element with
         | Some (t2, _) -> t2 
-        | None -> raise (Failure ("struct name not found"))
-      in (element_type, SRef((t', e'), s))
+        | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
+      in (element_type, SRef((t', str_name), s))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
