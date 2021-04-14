@@ -12,7 +12,8 @@ and sx =
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
   | SCall of string * sexpr list
-  | SRef of sexpr * string
+  (* | SRef of sexpr * string *)
+  | SRef of string * string * string
   | SArr_Ref of string * sexpr
   | SIf of sexpr * sexpr * sexpr
   | SAnon of bind list * sstmt list
@@ -81,7 +82,8 @@ let rec string_of_sexpr (t, e) =
   | SCall(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SArr_Ref(s, e) -> s ^ "[" ^ string_of_sexpr e ^ "]"
-  | SRef(e, s) -> string_of_sexpr e ^ "." ^ s
+  (* | SRef(e, _, s) -> string_of_sexpr e ^ "." ^ s *)
+  | SRef(s1, _, s2) -> s1 ^ "." ^ s2
   | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
       ^ string_of_sexpr e3
   | SAnon(bind_list, stmt_list) -> "(" ^ 

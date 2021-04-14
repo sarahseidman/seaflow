@@ -109,10 +109,9 @@ let translate (globs) =
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
-    | SRef(exp, fieldname) ->
-      (* let loc = expr vars builder exp in *)
-      let loc = lookup vars "me" in
-      let (ty, tlist, flist) = StringHash.find global_structs "struct Position" in
+    | SRef(str_name, type_of_struct, fieldname) ->
+      let loc = lookup vars str_name in
+      let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
       (* https://www.howtobuildsoftware.com/index.php/how-do/bRlD/list-find-ocaml-ml-memory-consumption-finding-an-item-in-a-list-and-returning-its-index-ocaml *)
       let rec find x lst =
         match lst with
