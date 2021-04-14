@@ -279,19 +279,15 @@ let translate (globs) =
         StringHash.add global_structs ("struct " ^ s) (ty, tlist, flist) ; builder
     | SStr_Decl(ty, str, expr_list) ->
         let expr_list' = List.map (expr global_vars builder) expr_list in
-        (* let namedty = try fst (StringHash.find global_structs (A.string_of_typ ty))
-            with Not_found -> raise (Failure "Struct not found")
-        in *)
         let init = L.const_struct context (Array.of_list expr_list') in
         let store = L.define_global str init the_module in
-
-        (* let store = L.build_alloca namedty str builder in  *)
-        (* let alloc = L.build_alloca namedty str builder in *)
-        (* need an llvalue that is the 2 ints *)
-        (* L.struct_set_body namedty expr_list' ; *)
-        (* L.const_insertvalue store (L.const_int i32_t 3) 0 ; *)
-
-        (* L.build_store init store builder ; *)
+        StringHash.add global_vars str store ; builder
+    (* SArr_Decl(ty, str, expr_list') *)
+    | SArr_Decl(ty, str, expr_list) ->
+        let expr_list' = List.map (expr global_vars builder) expr_list in
+        let ty' = ltype_of_typ ty in
+        let init = L.const_array ty' (Array.of_list expr_list') in
+        let store = L.define_global str init the_module in
         StringHash.add global_vars str store ; builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)

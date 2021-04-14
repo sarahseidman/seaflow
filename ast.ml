@@ -86,6 +86,9 @@ let rec string_of_typ = function
       String.concat ", " (List.map string_of_typ typ_list)
       ^ ") -> (" ^ string_of_typ typ ^ ")"
 
+let typ_of_arr = function
+  | Arr(typ) -> typ
+
 let string_of_bind (t, id) = string_of_typ t ^ " " ^ id ^ ";"
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 

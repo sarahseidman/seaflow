@@ -196,6 +196,19 @@ let check (globs) =
     | Str_Def(s, b_list) ->
       let _ = StringHash.add struct_defs ("struct " ^ s) b_list 
       in SStr_Def(s, b_list)
+    | Arr_Decl(ty, str, expr_list) ->
+      (* are all elements of expr_list the same type?
+        is this type also the type of ty?
+        and then add to global_vars? *)
+        (* make sure each expression is valid *)
+        let ty' = typ_of_arr ty in
+        let expr_list' = List.map (expr vars) expr_list in
+        (* now we can compare their types *)
+        let compare x (y,_) =
+          if x = y then () else raise (Failure("array declaration: type mismatch " ^ string_of_typ x ^ " != " ^ string_of_typ y))
+        in let _ = List.map (compare ty') expr_list' in
+        StringHash.add vars str ty ;
+        SArr_Decl(ty', str, expr_list')
     | Block sl -> 
       let rec check_stmt_list v = function
           [Return _ as s] -> [check_stmt v s]
