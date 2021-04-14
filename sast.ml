@@ -16,7 +16,7 @@ and sx =
   | SRef of string * string * string
   | SArr_Ref of string * sexpr
   | SIf of sexpr * sexpr * sexpr
-  | SAnon of bind list * sstmt list
+  | SFuncExpr of bind list * typ * sstmt list
   | SNoexpr
   | SVoid
 
@@ -86,7 +86,7 @@ let rec string_of_sexpr (t, e) =
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2
   | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
       ^ string_of_sexpr e3
-  | SAnon(bind_list, stmt_list) -> "(" ^ 
+  | SFuncExpr(bind_list, t, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
   | SVoid -> ""

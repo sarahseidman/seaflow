@@ -160,7 +160,7 @@ expr:
   | ID LPAREN args_opt RPAREN { Call($1, $3)  }
   | LPAREN expr RPAREN { $2                   }
   | IF LPAREN expr RPAREN expr ELSE expr    { If($3, $5, $7) }
-  | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { Anon(List.rev $2, List.rev $6) }   /* anonymous function */
+  | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { FuncExpr(List.rev $2, List.rev $6) }   /* anonymous function */
 
 obs_expr:
   | obs_var              { Id($1) }

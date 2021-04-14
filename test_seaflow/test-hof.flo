@@ -1,0 +1,5 @@
+(int)->(int) increment = (int x) -> {
+    return x + 1;
+};
+
+printi(increment(100));

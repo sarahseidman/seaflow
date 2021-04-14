@@ -21,7 +21,7 @@ type expr =
   | Ref of expr * string
   | Arr_Ref of string * expr
   | If of expr * expr * expr
-  | Anon of bind list * stmt list
+  | FuncExpr of bind list * stmt list
   | Noexpr
   | Void
 
@@ -121,7 +121,7 @@ let rec string_of_expr = function
   | Arr_Ref(s, e) -> s ^ "[" ^ string_of_expr e ^ "]"
   | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
       ^ string_of_expr e3
-  | Anon(bind_list, stmt_list) -> "(" ^ 
+  | FuncExpr(bind_list, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
   | Noexpr -> ""
