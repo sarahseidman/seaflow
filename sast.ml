@@ -8,10 +8,12 @@ and sx =
   | SFliteral of string
   | SChliteral of char
   | SId of string
+  | SSid of string
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
   | SCall of string * sexpr list
-  | SRef of sexpr * string list
+  (* | SRef of sexpr * string *)
+  | SRef of string * string * string
   | SArr_Ref of string * sexpr
   | SIf of sexpr * sexpr * sexpr
   | SAnon of bind list * sstmt list
@@ -72,14 +74,16 @@ let rec string_of_sexpr (t, e) =
     SLiteral(l) -> string_of_int l
   | SFliteral(l) -> l
   | SChliteral(l) -> "'" ^ String.make 1 l ^ "'"
-  | SId(s) -> s
+  | SId(s) -> "(id: " ^ s ^ ")"
+  | SSid(s) -> "(struct: " ^ s ^ ")"
   | SBinop(e1, o, e2) ->
       string_of_sexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_sexpr e2
   | SUnop(o, e) -> string_of_uop o ^ string_of_sexpr e
   | SCall(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SArr_Ref(s, e) -> s ^ "[" ^ string_of_sexpr e ^ "]"
-  | SRef(e, str_list) -> "[ref not yet parsed]"
+  (* | SRef(e, _, s) -> string_of_sexpr e ^ "." ^ s *)
+  | SRef(s1, _, s2) -> s1 ^ "." ^ s2
   | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
       ^ string_of_sexpr e3
   | SAnon(bind_list, stmt_list) -> "(" ^ 

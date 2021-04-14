@@ -14,12 +14,16 @@ end)
 
 let global_vars = StringHash.create 10
 let function_decls = StringHash.create 10
+let struct_defs = StringHash.create 10
 
 (* Semantic checking of the AST. Returns an SAST if successful,
    throws an exception if something is wrong.
 
    Check each global variable, then check each function *)
 
+
+let match_struct_element_name name (t, element) =
+  if name = element then true else false
 
 
 let check (globs) =
@@ -82,6 +86,21 @@ let check (globs) =
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
     | Id s       -> (type_of_identifier vars s, SId s)
+    (* | Sid s      -> (type_of_identifier vars s, SSid s) *)
+    | Ref(e, s) ->
+      let (t', e') = expr vars e in
+      let str_name = match e' with
+        | SId(x) -> x
+        | _ -> raise (Failure ("Struct field")) 
+      in
+      (* let str_name = Id(string_of_expr e) in *)
+      let l = try StringHash.find struct_defs (string_of_typ t')
+        with Not_found -> raise (Failure (string_of_expr e ^ " is not a struct")) in
+      let element = List.find_opt (match_struct_element_name s) l in
+      let element_type = match element with
+        | Some (t2, _) -> t2 
+        | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
+      in (element_type, SRef(str_name, string_of_typ t', s))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
@@ -144,6 +163,19 @@ let check (globs) =
       (* if t = func.typ then SReturn (t, e') 
       else raise (Failure ("return gives  ^ string_of_typ t ^  expected  ^
                             string_of_typ func.typ ^  in  ^ string_of_expr e")) *)
+    | Str_Decl(t, s, expr_list) ->
+      StringHash.add vars s t ;
+      let check_sdecl (t, expr_list) =
+        let l = try StringHash.find struct_defs (string_of_typ t)
+          with Not_found -> raise (Failure ("undeclared struct " ^ string_of_typ t))
+        in if List.length l == List.length expr_list then () else raise (Failure ("incorrect arguments number for " ^ string_of_typ t))
+      in
+      let _ = check_sdecl(t, expr_list) in
+      let expr_list' = List.map (expr vars) expr_list
+      in SStr_Decl(t, s, expr_list')
+    | Str_Def(s, b_list) ->
+      let _ = StringHash.add struct_defs ("struct " ^ s) b_list 
+      in SStr_Def(s, b_list)
     | Block sl -> 
       let rec check_stmt_list v = function
           [Return _ as s] -> [check_stmt v s]

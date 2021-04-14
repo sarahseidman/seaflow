@@ -136,14 +136,16 @@ expr_opt:
 
 expr:
     LITERAL          { Literal($1)            }
-  | NULL             { Void }
+  | NULL             { Void                    }
   | FLIT             { Fliteral($1)           }
-  | CHLIT            { Chliteral($1) }
-  | id_var           { Id($1)                 }
+  | CHLIT            { Chliteral($1)          }
+  | ID               { Id($1)                 }
+  | SID              { Sid($1)                }
+  | expr DOT ID      { Ref($1, $3)            }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
   | expr MINUS  expr { Binop($1, Sub, $3)     }
-  | expr TIMES  expr { Binop($1, Mult, $3)     }
+  | expr TIMES  expr { Binop($1, Mult, $3)    }
   | expr EQ     expr { Binop($1, Equal, $3)   }
   | expr NEQ    expr { Binop($1, Neq,   $3)   }
   | expr LT     expr { Binop($1, Less,  $3)   }
@@ -152,6 +154,7 @@ expr:
   | expr GEQ    expr { Binop($1, Geq,   $3)   }
   | expr AND    expr { Binop($1, And,   $3)   }
   | expr OR     expr { Binop($1, Or,    $3)   }
+
   | MINUS expr       { Unop(Neg, $2)          }
   | ID LBRAKT expr RBRAKT { Arr_Ref($1, $3)   }
   | ID LPAREN args_opt RPAREN { Call($1, $3)  }
@@ -206,9 +209,9 @@ obs_expr:
 
 
 
-id_var:
-    ID              { $1 }
-  // | id_var DOT ID   { Id(Ref($1, $3)) }
+// id_var:
+//     ID              { $1 }
+//   // | id_var DOT ID   { Ref($1, $3) }
 
 
 obs_var:

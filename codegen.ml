@@ -24,6 +24,7 @@ end)
 
 let global_vars = StringHash.create 10
 let global_funcs : (L.llvalue * Sast.sfunc_decl) StringHash.t = StringHash.create 10
+let global_structs = StringHash.create 10
 
 (* translate : Sast.program -> Llvm.module *)
 let translate (globs) =
@@ -39,14 +40,22 @@ let translate (globs) =
   (* and i1_t       = L.i1_type     context *)
   and float_t    = L.double_type context
   (* and char_t     = L.i8_type     context *)
-  and void_t     = L.void_type   context in
+  and void_t     = L.void_type   context 
+  and struct_t   = L.struct_type context     in
 
-  (* Return the LLVM type for a MicroC type *)
-  let ltype_of_typ = function
+  (* function to convert bind list to array of lltypes *)
+  let rec list_to_lltype l = Array.of_list (List.map ltype_of_typ l)
+
+  (* Return the LLVM type for a Seaflow type *)
+  and ltype_of_typ = function
       A.Int   -> i32_t
     | A.Char  -> i8_t
     | A.Float -> float_t
     | A.Void  -> void_t
+    | A.Struct(str) -> let (ty, _, _) = try (StringHash.find global_structs ("struct " ^ str))
+        with Not_found -> raise (Failure "Struct type mismatch")
+      in ty
+        
   in
 
   let printf_t : L.lltype = 
@@ -55,35 +64,22 @@ let translate (globs) =
     L.declare_function "printf" printf_t the_module in (* L.declare_function returns the function if it already exits in the module *)
 
 
-  (* let global_vars : L.llvalue StringMap.t = StringMap.empty in *)
-
-  (* let global_funcs : L.llvalue StringMap.t = StringMap.empty in *)
-
   let main_ftype = L.function_type i32_t [| |] in
   let main_function = L.define_function "main" main_ftype the_module in
-  (* let _ = StringHash.add global_funcs "main" (main_function, ()) in *)
-(*   
-  {
-    styp : typ;
-    sfname : string;
-    sformals : bind list;
-    (* locals : bind list; *)
-    sbody : sstmt list;
-  } 
-  {A.Int,"main",()}
-  *)
-
 
   let global_builder = L.builder_at_end context (L.entry_block main_function) in
 
-
   let add_global_var (t, s, v, builder) =
-    let init = match t with
+    let rec init t' = match t' with
         A.Float -> L.const_float float_t 0.0
       | A.Int   -> L.const_int i32_t 0
       | A.Char  -> L.const_int i8_t 0
+      | A.Struct(x) -> 
+        let (ty, tlist, flist) = StringHash.find global_structs ("struct " ^ x) in
+        let empty_vars = List.map init tlist in
+        L.const_struct context (Array.of_list empty_vars)
     in 
-    let store = L.define_global s init the_module in
+    let store = L.define_global s (init t) the_module in
     (* let () = printf "function name= %s wo\n%!" s in *)
     L.build_store v store builder ; StringHash.add global_vars s store
   in
@@ -113,6 +109,19 @@ let translate (globs) =
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
+    | SRef(str_name, type_of_struct, fieldname) ->
+      let loc = lookup vars str_name in
+      let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
+      (* https://www.howtobuildsoftware.com/index.php/how-do/bRlD/list-find-ocaml-ml-memory-consumption-finding-an-item-in-a-list-and-returning-its-index-ocaml *)
+      let rec find x lst =
+        match lst with
+        | [] -> raise (Failure "Not Found")
+        | h :: t -> if x = h then 0 else 1 + find x t 
+      in
+      let idx = find fieldname flist in
+      let p = L.build_struct_gep loc idx "tmp" builder in
+      L.build_load p "z" builder
+
     | SIf (e1, e2, e3) -> 
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -165,6 +174,27 @@ let translate (globs) =
       SExpr e -> ignore(expr global_vars builder e); builder
     | SDecl(t, s, e) -> let e' = expr global_vars builder e in
         let _ = add_global_var (t, s, e', builder) in builder
+    | SStr_Def(s, b_list) ->
+        let tlist = List.map fst b_list in
+        let flist = List.map snd b_list in
+        let ty = struct_t (list_to_lltype tlist)  in
+        StringHash.add global_structs ("struct " ^ s) (ty, tlist, flist) ; builder
+    | SStr_Decl(ty, str, expr_list) ->
+        let expr_list' = List.map (expr global_vars builder) expr_list in
+        (* let namedty = try fst (StringHash.find global_structs (A.string_of_typ ty))
+            with Not_found -> raise (Failure "Struct not found")
+        in *)
+        let init = L.const_struct context (Array.of_list expr_list') in
+        let store = L.define_global str init the_module in
+
+        (* let store = L.build_alloca namedty str builder in  *)
+        (* let alloc = L.build_alloca namedty str builder in *)
+        (* need an llvalue that is the 2 ints *)
+        (* L.struct_set_body namedty expr_list' ; *)
+        (* L.const_insertvalue store (L.const_int i32_t 3) 0 ; *)
+
+        (* L.build_store init store builder ; *)
+        StringHash.add global_vars str store ; builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
   in
