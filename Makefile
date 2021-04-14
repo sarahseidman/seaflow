@@ -29,6 +29,8 @@ clean :
 	rm -rf testall.log ocamlllvm *.diff
 	rm -f *.cmo
 	rm -f *.cmi
+	rm -f seaflowparse.ml
+	rm -f seaflowparse.mli
 
 .PHONY : intermediate
 intermediate :
