@@ -15,3 +15,9 @@ printc(b[2]);
 float[] f = [1.0, 3.4, 2.1];
 printf(f[0]);
 printf(f[1]);
+
+int[] copy = a;
+printi(copy[0]);
+
+char[] ccopy = b;
+printc(ccopy[2]);

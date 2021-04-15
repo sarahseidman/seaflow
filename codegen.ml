@@ -78,6 +78,11 @@ let translate (globs) =
         A.Float -> L.const_float float_t 0.0
       | A.Int   -> L.const_int i32_t 0
       | A.Char  -> L.const_int i8_t 0
+      | A.Arr(ty) -> 
+        let ar_ty = L.type_of v in
+        let len = L.array_length ar_ty in
+        let a = Array.make len (init ty) in
+        L.const_array (ltype_of_typ ty) a
       | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
       | A.Struct(x) ->
         let (ty, tlist, flist) = StringHash.find global_structs ("struct " ^ x) in
@@ -85,7 +90,6 @@ let translate (globs) =
         L.const_struct context (Array.of_list empty_vars)
     in
     let store = L.define_global s (init t) the_module in
-    (* let () = printf "function name= %s wo\n%!" s in *)
     L.build_store v store builder ; StringHash.add global_vars s store
   in
 
