@@ -1,0 +1,17 @@
+int[] a = [1,2,3];
+
+printi(a[0]);
+printi(a[1]);
+printi(a[2]);
+int z = 1;
+printi(a[z]);
+
+char[] b = ['a','b','c'];
+
+printc(b[0]);
+printc(b[1]);
+printc(b[2]);
+
+float[] f = [1.0, 3.4, 2.1];
+printf(f[0]);
+printf(f[1]);

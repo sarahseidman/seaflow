@@ -35,8 +35,8 @@ let check (globs) =
   in
 
   let _ = StringHash.add global_vars "printi" (Func([Int], Void)) in
-  let _ = StringHash.add global_vars "printf" (Func([Int], Float)) in
-  let _ = StringHash.add global_vars "printc" (Func([Int], Char)) in
+  let _ = StringHash.add global_vars "printf" (Func([Float], Float)) in
+  let _ = StringHash.add global_vars "printc" (Func([Char], Char)) in
 
   (*
   let built_in_decls = 
@@ -105,6 +105,13 @@ let check (globs) =
         | Some (t2, _) -> t2 
         | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
       in (element_type, SRef(str_name, string_of_typ t', s))
+    | Arr_Ref(s, e) ->
+      (* basically just check that the array exists and that expr is an int *)
+      let ty = typ_of_arr (type_of_identifier vars s) in
+      let (idx_ty, e') = expr vars e in
+      let _ = if idx_ty = Int then () 
+          else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
+      (ty, SArr_Ref(s, (idx_ty, e')))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
@@ -154,12 +161,12 @@ let check (globs) =
 
         let param_length = List.length formals in
         if List.length args != param_length then
-          raise (Failure ("expecting ^ string_of_int param_length ^ 
-                            arguments in  ^ string_of_expr call"))
+          raise (Failure ("expecting " ^ string_of_int param_length ^ 
+                            " arguments in " ^ string_of_expr call))
         else let check_call ft e = 
           let (et, e') = expr vars e in 
-          let err = "illegal argument found  ^ string_of_typ et ^
-              expected  ^ string_of_typ ft ^  in  ^ string_of_expr e"
+          let err = "illegal argument: found "  ^ string_of_typ et ^
+              " expected "  ^ string_of_typ ft ^  " in "  ^ string_of_expr e
           in (check_assign ft et err, e')
         in 
         let args' = List.map2 check_call formals args in

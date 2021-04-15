@@ -128,7 +128,13 @@ let translate (globs) =
       let idx = find fieldname flist in
       let p = L.build_struct_gep loc idx "tmp" builder in
       L.build_load p "z" builder
-
+    | SArr_Ref(s, e) ->
+      let arr = lookup vars s in
+      (* how to check for out of bounds index? *)
+      let e' = expr vars builder e in
+      let p = L.build_struct_gep arr 0 "tmp" builder in
+      let p' = L.build_in_bounds_gep p [|e'|] "tmp" builder in
+      L.build_load p' "tmp" builder
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -233,41 +239,6 @@ let translate (globs) =
     the_function
   in
 
-
-    (* let local_vars =
-      let add_formal m (t, n) p =
-        L.set_value_name n p;
-        let local = L.build_alloca (ltype_of_typ t) n builder in
-        ignore (L.build_store p local builder);
-        StringMap.add n local m
-
-      (* Allocate space for any locally declared variables and add the
-       * resulting registers to our map *)
-      and add_local m (t, n) =
-        let local_var = L.build_alloca (ltype_of_typ t) n builder
-        in StringMap.add n local_var m
-      in
-
-      let formals = List.fold_left2 add_formal StringMap.empty fdecl.sformals
-          (Array.to_list (L.params the_function)) in
-      List.fold_left add_local formals fdecl.slocals
-    in *)
-
-
-
-  (* let build_global_func fdecl =
-    function_decl fdecl *)
-
-
-  (* SFdecl = {
-    styp : typ;
-    sfname : string;
-    sformals : bind list;
-    (* locals : bind list; *)
-    sbody : sstmt list;
-  } *)
-
-
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
     | SDecl(t, s, e) -> let e' = expr global_vars builder e in
@@ -282,7 +253,6 @@ let translate (globs) =
         let init = L.const_struct context (Array.of_list expr_list') in
         let store = L.define_global str init the_module in
         StringHash.add global_vars str store ; builder
-    (* SArr_Decl(ty, str, expr_list') *)
     | SArr_Decl(ty, str, expr_list) ->
         let expr_list' = List.map (expr global_vars builder) expr_list in
         let ty' = ltype_of_typ ty in
