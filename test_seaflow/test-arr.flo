@@ -21,3 +21,24 @@ printi(copy[0]);
 
 char[] ccopy = b;
 printc(ccopy[2]);
+
+int foo() {
+    int[] d = [1,2,3];
+    int y = 4;
+    int[] x = d;
+    return x[2];
+}
+
+float bar() {
+    float[] fl = [0.1, 2.3, 4.5];
+    float[] flo = fl;
+    return flo[2];
+}
+
+int[] baz() {
+    int[] ret = [1,2,3];
+    return ret;
+}
+
+printi(foo());
+printf(bar());

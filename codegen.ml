@@ -210,6 +210,13 @@ let translate (globs) =
       StringHash.add local_vars n local
     in
 
+    let add_local_arr n p ltyp = 
+      L.set_value_name n p ; 
+      let local = L.build_alloca ltyp n local_builder in
+      ignore (L.build_store p local local_builder);
+      StringHash.add local_vars n local
+    in
+
     let add_local (t, n) =
       let local = L.build_alloca (ltype_of_typ t) n local_builder in
       StringHash.add local_vars n local
@@ -224,8 +231,17 @@ let translate (globs) =
     let build_local_stmt builder = function
         SExpr e -> ignore(expr local_vars builder e)
       | SDecl(t, s, e) -> let e' = expr local_vars builder e in
-          ignore(add_formal (t, s) e')
-          (* ignore(add_local (t, s, e', builder)) *)
+          let arr_special_case ty = (match ty with
+            A.Arr(x) -> let ltyp = L.type_of e' in ignore(add_local_arr s e' ltyp)
+            | _ -> ignore(add_formal (ty, s) e')
+          ) in
+          ignore(arr_special_case t)
+      | SArr_Decl(ty, str, expr_list) ->
+          let e' = List.map (expr local_vars builder) expr_list in
+          let num = List.length expr_list in
+          let ltyp = L.array_type (ltype_of_typ ty) num in
+          let contents = L.const_array ltyp (Array.of_list e') in
+          ignore(add_local_arr str contents ltyp)
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
