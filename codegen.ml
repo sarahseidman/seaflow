@@ -123,7 +123,6 @@ let translate (globs) =
     | SRef(str_name, type_of_struct, fieldname) ->
       let loc = lookup vars str_name in
       let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
-      (* https://www.howtobuildsoftware.com/index.php/how-do/bRlD/list-find-ocaml-ml-memory-consumption-finding-an-item-in-a-list-and-returning-its-index-ocaml *)
       let rec find x lst =
         match lst with
         | [] -> raise (Failure "Not Found")
@@ -139,6 +138,12 @@ let translate (globs) =
       let p = L.build_struct_gep arr 0 "tmp" builder in
       let p' = L.build_in_bounds_gep p [|e'|] "tmp" builder in
       L.build_load p' "tmp" builder
+    | SLen(s) ->
+      let arr = lookup vars s in
+      let p = L.type_of arr in
+      let ltyp = L.element_type p in
+      let len = L.array_length ltyp in
+      L.const_int i32_t len
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2

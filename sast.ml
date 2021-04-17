@@ -17,6 +17,7 @@ and sx =
   | SArr_Ref of string * sexpr
   | SIf of sexpr * sexpr * sexpr
   | SFuncExpr of bind list * typ * sstmt list
+  | SLen of string
   | SNoexpr
   | SVoid
 
@@ -91,6 +92,7 @@ let rec string_of_sexpr (t, e) =
   | SFuncExpr(bind_list, t, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
+  | SLen(s) -> s ^ ".length"
   | SVoid -> ""
   | SNoexpr -> ""
         ) ^ ")"		

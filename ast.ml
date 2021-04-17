@@ -22,6 +22,7 @@ type expr =
   | Arr_Ref of string * expr
   | If of expr * expr * expr
   | FuncExpr of bind list * stmt list
+  | Len of string
   | Noexpr
   | Void
 
@@ -127,6 +128,7 @@ let rec string_of_expr = function
   | FuncExpr(bind_list, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
+  | Len(s) -> s ^ ".length"
   | Noexpr -> ""
   | Void -> ""
 

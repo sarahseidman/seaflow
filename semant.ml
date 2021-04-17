@@ -90,7 +90,6 @@ let check (globs) =
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
     | Id s       -> (type_of_identifier vars s, SId s)
-    (* | Sid s      -> (type_of_identifier vars s, SSid s) *)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
       let str_name = match e' with
@@ -112,6 +111,11 @@ let check (globs) =
       let _ = if idx_ty = Int then () 
           else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
       (ty, SArr_Ref(s, (idx_ty, e')))
+    | Len(s) ->
+      let ty = type_of_identifier vars s in 
+      let _ = try typ_of_arr ty
+          with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
+      (Int, SLen(s))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1

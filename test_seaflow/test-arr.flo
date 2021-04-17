@@ -26,7 +26,7 @@ int foo() {
     int[] d = [1,2,3];
     int y = 4;
     int[] x = d;
-    return x[2];
+    return x.length;
 }
 
 float bar() {
@@ -35,10 +35,8 @@ float bar() {
     return flo[2];
 }
 
-int[] baz() {
-    int[] ret = [1,2,3];
-    return ret;
-}
-
 printi(foo());
 printf(bar());
+
+int len = a.length;
+printi(len);
