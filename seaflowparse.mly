@@ -155,6 +155,7 @@ expr:
   | expr GEQ    expr { Binop($1, Geq,   $3)   }
   | expr AND    expr { Binop($1, And,   $3)   }
   | expr OR     expr { Binop($1, Or,    $3)   }
+  | LBRAKT args_list RBRAKT { Aliteral(List.rev $2)         }
 
   | MINUS expr       { Unop(Neg, $2)          }
   | ID LBRAKT expr RBRAKT                     { Arr_Ref($1, $3)  }

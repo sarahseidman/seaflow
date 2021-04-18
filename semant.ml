@@ -89,6 +89,13 @@ let check (globs) =
       Literal  l -> (Int, SLiteral l)
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
+    | Aliteral a -> 
+      let (ty, _) = expr vars (List.hd a) in
+      let expr_list = List.map (expr vars) a in
+      let compare x (y,_) =
+        if x = y then () else raise (Failure("array literal: type mismatch " ^ string_of_typ x ^ " != " ^ string_of_typ y))
+      in let _ = List.map (compare ty) expr_list in
+      (Arr(ty), SAliteral (ty, expr_list))
     | Id s       -> (type_of_identifier vars s, SId s)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
@@ -127,6 +134,7 @@ let check (globs) =
           Int when same -> Int
         | Float when same -> Float
         | Char when same -> Char
+        | Arr(x) when same -> Arr(x)
         | _ -> raise (Failure ("illegal if; types must match"))
         in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
     | Binop(e1, op, e2) as e -> 
@@ -219,7 +227,7 @@ let check (globs) =
           if x = y then () else raise (Failure("array declaration: type mismatch " ^ string_of_typ x ^ " != " ^ string_of_typ y))
         in let _ = List.map (compare ty') expr_list' in
         StringHash.add vars str ty ;
-        SArr_Decl(ty', str, expr_list')
+        SArr_Decl(ty, str, expr_list')
     | Block sl -> 
       let rec check_stmt_list v = function
           [Return _ as s] -> [check_stmt v s]

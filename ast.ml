@@ -13,6 +13,7 @@ type expr =
     Literal of int
   | Fliteral of string
   | Chliteral of char
+  | Aliteral of expr list
   | Id of string
   | Sid of string
   | Binop of expr * op * expr

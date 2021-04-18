@@ -7,6 +7,7 @@ and sx =
     SLiteral of int
   | SFliteral of string
   | SChliteral of char
+  | SAliteral of typ * sexpr list
   | SId of string
   | SSid of string
   | SBinop of sexpr * op * sexpr
