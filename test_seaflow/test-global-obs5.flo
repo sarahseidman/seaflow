@@ -1,0 +1,4 @@
+int $a = 5;
+int $b = $a + 5;
+
+subscribe(printi, $b);
