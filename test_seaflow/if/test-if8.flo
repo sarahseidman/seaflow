@@ -1,0 +1,19 @@
+int foo(int i) {
+  return i + 3;
+}
+
+int bar(int j) {
+  return j + j;
+}
+
+int baz(int k) {
+  return k * k;
+}
+
+int bop(int i, int j, int k) {
+  int a = if (1 == 1) foo(i) else if (1 == 1) bar(j) else baz(k);
+  printi(a);
+  return 0;
+}
+
+bop(7, 12, 4);

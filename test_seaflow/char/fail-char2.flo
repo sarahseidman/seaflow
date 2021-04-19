@@ -1,0 +1,6 @@
+int i = 7;
+char j = 'd';
+
+int k = i && j;
+
+printi(k);
