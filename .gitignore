@@ -15,10 +15,10 @@ scanner.ml
 seaflow
 seaflow.native
 *.ll
-test-*.out
-test-*.diff
-test-*.exe
-test-*.s
+./test-*.out
+./test-*.diff
+./test-*.exe
+./test-*.s
 
 # Environment
 **/.DS_store

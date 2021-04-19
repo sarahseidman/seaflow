@@ -24,7 +24,7 @@ module StringHash = Hashtbl.Make(struct
   let hash = Hashtbl.hash
 end)
 
-let global_vars = StringHash.create 10
+let global_vars : L.llvalue StringHash.t = StringHash.create 10
 let global_structs = StringHash.create 10
 
 (* translate : Sast.program -> Llvm.module *)
@@ -42,13 +42,14 @@ let translate (globs) =
   and float_t    = L.double_type context
   (* and char_t     = L.i8_type     context *)
   and void_t     = L.void_type   context
+  and void_ptr_t = L.pointer_type (L.i8_type context)
   and struct_t   = L.struct_type context     in
 
   (* function to convert bind list to array of lltypes *)
   let rec list_to_lltype l = Array.of_list (List.map ltype_of_typ l)
 
   (* Return the LLVM type for a Seaflow type *)
-  and ltype_of_typ = function
+  and ltype_of_typ : A.typ -> L.lltype = function
       A.Int   -> i32_t
     | A.Char  -> i8_t
     | A.Float -> float_t
@@ -60,7 +61,12 @@ let translate (globs) =
       let param_ltypes = (List.map ltype_of_typ param_types) in
       let rltype = ltype_of_typ rtype in
       L.pointer_type (L.function_type rltype (Array.of_list param_ltypes))
-  in
+    | A.Observable t -> L.pointer_type obv_t
+
+
+  and obv_t = L.named_struct_type context "observable" in
+  let obv_pt = L.pointer_type obv_t in
+  ignore(L.struct_set_body obv_t [| i32_t; void_ptr_t; void_ptr_t |] false);
 
   let printf_t : L.lltype =
     L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
@@ -268,6 +274,22 @@ let translate (globs) =
   } *)
 
 
+
+  let rec oexpr vars builder ((tt, oe) : soexpr) = match oe with
+      SOId s -> L.build_load (lookup vars s) s builder
+    | SOBinop1(oe1, op, e2) -> raise (Failure ("Not Implemented 2020"))
+    | SOBinop2(e1, op, oe2) -> raise (Failure ("Not Implemented 2020"))
+    | SOBinop3(oe1, op, oe2) -> raise (Failure ("Not Implemented 2020"))
+    | SOUnop(op, oe) -> raise (Failure ("Not Implemented 2020"))
+    | _ -> raise (Failure ("Not Implemented 2020"))
+  in
+
+
+
+
+
+
+
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
     | SDecl(t, s, e) -> let e' = expr global_vars builder e in
@@ -297,9 +319,48 @@ let translate (globs) =
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
   in
 
+
+
+  let build_obs_stmt builder = function
+      SObs(t, e) -> builder
+
+    | SODecl(lt, s, e) ->
+      let e' = expr global_vars builder e in
+      (* let _ = add_global_var (t, s, e', builder) in *)
+
+      let v_store = L.define_global "me" (L.const_int i32_t 0) the_module in
+      let _ = L.build_store e' v_store builder in
+
+      (* let store = L.define_global s (L.const_null obv_pt) the_module in *)
+      let obv_ptr = L.build_malloc obv_t "__new_obv_ptr" builder in
+      (* ignore(L.build_store e' store builder); *)
+      ignore(StringHash.add global_vars s obv_ptr);
+      (* let _ = add_global_var (t, s, e', builder) in builder *)
+
+      let v_ptr = L.build_struct_gep obv_ptr 1 "recent" builder in
+      let v_store_as_i8 = L.build_bitcast v_store void_ptr_t "dataptr_as_i8" builder in
+      ignore(L.build_store v_store_as_i8 v_ptr builder);
+
+
+      builder
+    | SOOAssign(lt, s, e) ->
+      (* let (rt, e') = expr vars e in
+      let lt = type_of_identifier vars s in
+      SOAssign(lt, s, (rt, e')); *)
+      builder
+    | SSubscribe(s, e, oe) ->
+      let oe' = oexpr global_vars builder oe in
+
+      
+      (* let (ft, e') = expr vars e in
+      let (ot, oe') = oexpr vars oe in; *)
+      builder
+    | _ -> raise (Failure ("Not Implemented 2100"))
+  in
+
   let translate_line glob = match glob with
         SStmt stmt -> ignore(build_global_stmt global_builder stmt)
-      | SObs_Stmt obs_stmt -> raise (Failure "Not Implemented 2000")
+      | SObs_Stmt obs_stmt -> ignore(build_obs_stmt global_builder obs_stmt)
       (* | SFdecl func -> let top_local_vars = StringHash.create 10 in
           ignore(build_function (func, top_local_vars)) *)
 

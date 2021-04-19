@@ -6,6 +6,9 @@ type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
 type uop = Neg
 
 type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Func of typ list * typ
+  | Observable of typ
+
+(* type otyp = Observable of typ *)
 
 type bind = typ * string
 
@@ -25,9 +28,7 @@ type expr =
   | Noexpr
   | Void
 
-and
-
-stmt =
+and stmt =
     Block of stmt list
   (* | Obs of string *)
   | Expr of expr
@@ -47,13 +48,24 @@ type func_decl = {
   }
 
 
+type oexpr =
+  | OId of string
+  | OBinop1 of oexpr * op * expr   (* For map operation     *)
+  | OBinop2 of expr * op * oexpr
+  | OBinop3 of oexpr * op * oexpr  (* For combine operation *)
+  | OUnop of uop * oexpr 
+
+
 type obs_stmt = 
-    Obs of string 
-  | OExpr of expr
+    Obs of typ * string
+  | OExpr of oexpr
   | ODecl of typ * string * expr
+  | OODecl of typ * string * oexpr
   | OAssign of string * expr
+  | OOAssign of string * oexpr
   | OArr_Decl of typ * string * expr list
   | OStr_Decl of typ * string * expr list
+  | Subscribe of string * expr * oexpr
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }
@@ -85,6 +97,7 @@ let rec string_of_typ = function
   | Func(typ_list, typ) -> "(" ^
       String.concat ", " (List.map string_of_typ typ_list)
       ^ ") -> (" ^ string_of_typ typ ^ ")"
+  | Observable(typ) -> string_of_typ typ ^ "$"
 
 let string_of_bind (t, id) = string_of_typ t ^ " " ^ id ^ ";"
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
@@ -143,15 +156,31 @@ string_of_stmt = function
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 
+
+let rec string_of_oexpr = function
+    OId(s) -> s
+  | OBinop1(e1, o, e2) ->
+    string_of_oexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
+  | OBinop2(e1, o, e2) ->
+    string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_oexpr e2
+  | OBinop3(e1, o, e2) ->
+    string_of_oexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_oexpr e2
+  | OUnop(o, e) -> string_of_uop o ^ string_of_oexpr e
+
+
 let string_of_obs_stmt = function
-    Obs(s) -> "type? " ^ s ^ ";\n"
-  | OExpr(e) -> string_of_expr e ^ ";\n"
+    Obs(t, s) -> string_of_typ t ^ " " ^ s ^ ";\n"
+  | OExpr(e) -> string_of_oexpr e ^ ";\n"
   | ODecl(t, s, e) -> string_of_typ t ^ " " ^ s ^ " = " ^ string_of_expr e ^ ";\n"
+  | OODecl(t, s, e) -> string_of_typ t ^ " " ^ s ^ " = " ^ string_of_oexpr e ^ ";\n"
   | OAssign(s, e) -> s ^ " = " ^ string_of_expr e ^ ";\n"
+  | OOAssign(s, e) -> s ^ " = " ^ string_of_oexpr e ^ ";\n"
   | OArr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^
       String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
   | OStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
-      String.concat ", " (List.map string_of_expr expr_list) ^ "};\n" 
+      String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
+  | Subscribe(s, e, oe) ->
+      s ^ "(" ^ string_of_expr e ^ ", " ^ string_of_oexpr oe ^ ");\n"
 
 
 let string_of_fdecl fdecl =

@@ -1,0 +1,66 @@
+; ModuleID = 'Seaflow'
+source_filename = "Seaflow"
+
+%observable = type { i32, i8*, i8*, i8*, i8* }
+
+@me = global i32 0
+
+declare i32 @printf(i8*, ...)
+
+define i32 @main() {
+entry:
+  store i32 5, i32* @me
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (%observable* getelementptr (%observable, %observable* null, i32 1) to i32))
+  %__new_obv_ptr = bitcast i8* %malloccall to %observable*
+  %recent = getelementptr inbounds %observable, %observable* %__new_obv_ptr, i32 0, i32 1
+  store i8* bitcast (i32* @me to i8*), i8** %recent
+  ret i32 0
+}
+
+declare noalias i8* @malloc(i32)
+
+
+
+int $a = 5;
+int $b = $a + 10;
+subscribe($b, printi);
+
+
+
+
+int $a = 5;
+
+stack 5
+{  
+    i32,
+    i8* currentValue;   -> stack 5
+    i8* upstreamValue;  -> stack NULL  (in the future this should be linkedlist)
+    i8* func;   -> function pointer
+    i8* downstreamObservable;   -> anonymous function
+}: $a
+
+subscribe($a, printi)
+{  
+    i32,
+    i8* currentValue;   -> stack NULL
+    i8* upstreamValue;  -> stack 5  (in the future this should be linkedlist)
+    i8* func;   -> printi
+    i8* downstreamObservable;   -> NULL
+}: $a_1
+
+$a = 6;
+
+
+
+
+
+subscribe($a, printi);
+
+{
+    i32,
+    i8*,
+    i8*,  -> printi
+    i8*,
+    i8*,
+}
+

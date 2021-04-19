@@ -27,6 +27,16 @@ let match_struct_element_name name (t, element) =
   if name = element then true else false
 
 
+(* Observable can't be observable of observable *)
+let get_observable_inner_type (ot: typ) : typ = match ot with
+  | Observable(t) -> (match t with
+    | Observable(_)
+    | Func(_, _) -> raise (Failure ("Observable can't be observable of observable or func"))
+    | _ as x -> x)
+  | _ as x -> raise (Failure (string_of_typ x ^ " is not an observable"))
+
+
+
 let check (globs) =
 
   let print_hash name ht =
@@ -230,8 +240,100 @@ let check (globs) =
   in
 
 
-  let check_obs_stmt = function
-      Obs e -> SObs e
+  let rec oexpr vars = function
+      OId(s) -> (type_of_identifier vars s, SOId s)
+    | OBinop1(oe1, op, e2) ->
+      let (ot1, oe1') = oexpr vars oe1 
+      and (t2, e2') = expr vars e2 in
+
+      let t1 = get_observable_inner_type ot1 in
+      let same = t1 = t2 in
+      let ty = match op with
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
+        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
+        | Equal | Neq            when same               -> Observable(Int)
+        | Less | Leq | Greater | Geq
+                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
+        | And | Or when same && t1 = Int -> Observable(Int)
+        | _ -> raise (Failure ("illegal binary operator  ^
+                                string_of_typ t1 ^  ^ string_of_op op ^  ^
+                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+      in (ty, SOBinop1((ot1, oe1'), op, (t2, e2')))
+    | OBinop2(e1, op, oe2) ->
+      let (t1, e1') = expr vars e1 
+      and (ot2, oe2') = oexpr vars oe2 in
+
+      let t2 = get_observable_inner_type ot2 in
+      let same = t1 = t2 in
+      let ty = match op with
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
+        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
+        | Equal | Neq            when same               -> Observable(Int)
+        | Less | Leq | Greater | Geq
+                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
+        | And | Or when same && t1 = Int -> Observable(Int)
+        | _ -> raise (Failure ("illegal binary operator  ^
+                                string_of_typ t1 ^  ^ string_of_op op ^  ^
+                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+      in (ty, SOBinop2((t1, e1'), op, (ot2, oe2')))
+    | OBinop3(oe1, op, oe2) ->
+      let (ot1, oe1') = oexpr vars oe1 
+      and (ot2, oe2') = oexpr vars oe2 in
+
+      let t1 = get_observable_inner_type ot1 in
+      let t2 = get_observable_inner_type ot2 in
+      let same = t1 = t2 in
+      let ty = match op with
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
+        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
+        | Equal | Neq            when same               -> Observable(Int)
+        | Less | Leq | Greater | Geq
+                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
+        | And | Or when same && t1 = Int -> Observable(Int)
+        | _ -> raise (Failure ("illegal binary operator  ^
+                                string_of_typ t1 ^  ^ string_of_op op ^  ^
+                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+      in (ty, SOBinop3((ot1, oe1'), op, (ot2, oe2')))
+    | OUnop(op, oe) ->
+      let (ty, oe') = oexpr vars oe in (ty, SOUnop(op, (ty, oe')))
+    | _ -> raise (Failure ("Not Implemented 1020"))
+  in
+
+  let check_obs_stmt vars = function
+      Obs(t, e) -> SObs(t, e)
+    | OExpr oe -> SOExpr(oexpr vars oe)
+    | ODecl(lt, var, e) as ex ->
+      let (rt, e') = expr vars e in
+      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
+        string_of_typ rt ^  in  ^ string_of_expr ex" in
+      StringHash.add vars var lt;
+      SODecl(lt, var, (rt, e'))
+    | OODecl(lt, var, oe) as ex ->
+      let (rt, oe') = oexpr vars oe in
+      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
+        string_of_typ rt ^  in  ^ string_of_expr ex" in
+      StringHash.add vars var lt;
+      SOODecl(lt, var, (rt, oe'))
+    | OAssign(s, e) ->
+      let (rt, e') = expr vars e in
+      let lt = type_of_identifier vars s in
+      SOAssign(lt, s, (rt, e'))
+    | OOAssign(s, oe) ->
+      let (ot, oe') = oexpr vars oe in
+      let lt = type_of_identifier vars s in
+      SOOAssign(lt, s, (ot, oe'))
+    (*
+    | OArr_Decl of typ * string * expr list
+    | OStr_Decl of typ * string * expr list
+    *)
+    | Subscribe(s, e, oe) ->
+      let (ft, e') = expr vars e in
+      let (ot, oe') = oexpr vars oe in
+      (* Need to check function type *)
+      SSubscribe(s, (ft, e'), (ot, oe'))
     | _ -> raise (Failure ("Not Implemented 1000"))
   in
 
@@ -245,7 +347,7 @@ let check (globs) =
 
   let check_glob glob = match glob with
       Stmt stmt -> SStmt(check_stmt global_vars stmt)
-    | Obs_Stmt obs_stmt -> SObs_Stmt(check_obs_stmt obs_stmt)
+    | Obs_Stmt obs_stmt -> SObs_Stmt(check_obs_stmt global_vars obs_stmt)
     | Fdecl func -> SStmt(fdecl_to_assign_stmt global_vars func)
     (* | Fdecl func -> add_func func ; SFdecl(check_func_decl global_vars func) *)
 

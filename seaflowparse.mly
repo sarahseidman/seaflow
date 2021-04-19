@@ -63,12 +63,7 @@ fdecl:
 	 formals = List.rev $4;
 	 body = List.rev $7 } }
 
-// odecl:
-//     typ OBS SEMI                              { Obs($2) }
-//   | typ OBS ASSIGN expr SEMI                  { Assign($2, $4) }
-//   | typ OBS ASSIGN obs_expr SEMI              { Assign($2, $4) }
-//   | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($2, $5) }
-//   | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($2, $5) }
+
 
 
 func_body:
@@ -122,13 +117,16 @@ stmt:
 obs_stmt:
     obs_expr SEMI                             { OExpr $1 }
   | OBS ASSIGN expr SEMI                      { OAssign($1, $3)         }
-  | OBS ASSIGN obs_expr SEMI                  { OAssign($1, $3) }
+  | OBS ASSIGN obs_expr SEMI                  { OOAssign($1, $3) }
 // odecl:
-  | typ OBS SEMI                              { Obs($2) }
-  | typ OBS ASSIGN expr SEMI                  { ODecl($1, $2, $4) }
-  | typ OBS ASSIGN obs_expr SEMI              { ODecl($1, $2, $4) }
-  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { OStr_Decl($1, $2, List.rev $5) }
-  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl($1, $2, List.rev $5) }
+  | typ OBS SEMI                              { Obs(Observable($1), $2) }
+  | typ OBS ASSIGN expr SEMI                  { ODecl(Observable($1), $2, $4) }
+  | typ OBS ASSIGN obs_expr SEMI              { OODecl(Observable($1), $2, $4) }
+  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { OStr_Decl(Observable($1), $2, List.rev $5) }
+  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl(Observable($1), $2, List.rev $5) }
+
+  | ID LPAREN expr COMMA obs_expr RPAREN SEMI      { Subscribe($1, $3, $5) }
+
 
 expr_opt:
     /* nothing */ { Noexpr }
@@ -164,48 +162,48 @@ expr:
   | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { FuncExpr(List.rev $2, List.rev $6) }   /* anonymous function */
 
 obs_expr:
-  | obs_var              { Id($1) }
-  | obs_expr PLUS   expr { Binop($1, Add,   $3)   }
-  | obs_expr DIVIDE expr { Binop($1, Div,   $3)   }
-  | obs_expr MINUS  expr { Binop($1, Sub, $3)     }
-  | obs_expr TIMES  expr { Binop($1, Mult, $3)     }
-  | obs_expr EQ     expr { Binop($1, Equal, $3)   }
-  | obs_expr NEQ    expr { Binop($1, Neq,   $3)   }
-  | obs_expr LT     expr { Binop($1, Less,  $3)   }
-  | obs_expr LEQ    expr { Binop($1, Leq,   $3)   }
-  | obs_expr GT     expr { Binop($1, Greater, $3) }
-  | obs_expr GEQ    expr { Binop($1, Geq,   $3)   }
-  | obs_expr AND    expr { Binop($1, And,   $3)   }
-  | obs_expr OR     expr { Binop($1, Or,    $3)   }
+  | obs_var              { OId($1) }
+  | obs_expr PLUS   expr { OBinop1($1, Add,   $3)   }
+  | obs_expr DIVIDE expr { OBinop1($1, Div,   $3)   }
+  | obs_expr MINUS  expr { OBinop1($1, Sub, $3)     }
+  | obs_expr TIMES  expr { OBinop1($1, Mult, $3)    }
+  | obs_expr EQ     expr { OBinop1($1, Equal, $3)   }
+  | obs_expr NEQ    expr { OBinop1($1, Neq,   $3)   }
+  | obs_expr LT     expr { OBinop1($1, Less,  $3)   }
+  | obs_expr LEQ    expr { OBinop1($1, Leq,   $3)   }
+  | obs_expr GT     expr { OBinop1($1, Greater, $3) }
+  | obs_expr GEQ    expr { OBinop1($1, Geq,   $3)   }
+  | obs_expr AND    expr { OBinop1($1, And,   $3)   }
+  | obs_expr OR     expr { OBinop1($1, Or,    $3)   }
 
-  | expr PLUS   obs_expr { Binop($1, Add,   $3)   }
-  | expr DIVIDE obs_expr { Binop($1, Div,   $3)   }
-  | expr MINUS  obs_expr { Binop($1, Sub, $3)     }
-  | expr TIMES  obs_expr { Binop($1, Mult, $3)     }
-  | expr EQ     obs_expr { Binop($1, Equal, $3)   }
-  | expr NEQ    obs_expr { Binop($1, Neq,   $3)   }
-  | expr LT     obs_expr { Binop($1, Less,  $3)   }
-  | expr LEQ    obs_expr { Binop($1, Leq,   $3)   }
-  | expr GT     obs_expr { Binop($1, Greater, $3) }
-  | expr GEQ    obs_expr { Binop($1, Geq,   $3)   }
-  | expr AND    obs_expr { Binop($1, And,   $3)   }
-  | expr OR     obs_expr { Binop($1, Or,    $3)   }
+  | expr PLUS   obs_expr { OBinop2($1, Add,   $3)   }
+  | expr DIVIDE obs_expr { OBinop2($1, Div,   $3)   }
+  | expr MINUS  obs_expr { OBinop2($1, Sub, $3)     }
+  | expr TIMES  obs_expr { OBinop2($1, Mult, $3)    }
+  | expr EQ     obs_expr { OBinop2($1, Equal, $3)   }
+  | expr NEQ    obs_expr { OBinop2($1, Neq,   $3)   }
+  | expr LT     obs_expr { OBinop2($1, Less,  $3)   }
+  | expr LEQ    obs_expr { OBinop2($1, Leq,   $3)   }
+  | expr GT     obs_expr { OBinop2($1, Greater, $3) }
+  | expr GEQ    obs_expr { OBinop2($1, Geq,   $3)   }
+  | expr AND    obs_expr { OBinop2($1, And,   $3)   }
+  | expr OR     obs_expr { OBinop2($1, Or,    $3)   }
 
-  | obs_expr PLUS   obs_expr { Binop($1, Add,   $3)   }
-  | obs_expr DIVIDE obs_expr { Binop($1, Div,   $3)   }
-  | obs_expr MINUS  obs_expr { Binop($1, Sub, $3)     }
-  | obs_expr TIMES  obs_expr { Binop($1, Mult, $3)     }
-  | obs_expr EQ     obs_expr { Binop($1, Equal, $3)   }
-  | obs_expr NEQ    obs_expr { Binop($1, Neq,   $3)   }
-  | obs_expr LT     obs_expr { Binop($1, Less,  $3)   }
-  | obs_expr LEQ    obs_expr { Binop($1, Leq,   $3)   }
-  | obs_expr GT     obs_expr { Binop($1, Greater, $3) }
-  | obs_expr GEQ    obs_expr { Binop($1, Geq,   $3)   }
-  | obs_expr AND    obs_expr { Binop($1, And,   $3)   }
-  | obs_expr OR     obs_expr { Binop($1, Or,    $3)   }
+  | obs_expr PLUS   obs_expr { OBinop3($1, Add,   $3)   }
+  | obs_expr DIVIDE obs_expr { OBinop3($1, Div,   $3)   }
+  | obs_expr MINUS  obs_expr { OBinop3($1, Sub, $3)     }
+  | obs_expr TIMES  obs_expr { OBinop3($1, Mult, $3)    }
+  | obs_expr EQ     obs_expr { OBinop3($1, Equal, $3)   }
+  | obs_expr NEQ    obs_expr { OBinop3($1, Neq,   $3)   }
+  | obs_expr LT     obs_expr { OBinop3($1, Less,  $3)   }
+  | obs_expr LEQ    obs_expr { OBinop3($1, Leq,   $3)   }
+  | obs_expr GT     obs_expr { OBinop3($1, Greater, $3) }
+  | obs_expr GEQ    obs_expr { OBinop3($1, Geq,   $3)   }
+  | obs_expr AND    obs_expr { OBinop3($1, And,   $3)   }
+  | obs_expr OR     obs_expr { OBinop3($1, Or,    $3)   }
 
-  | MINUS obs_expr         { Unop(Neg, $2)      }
-  | OBS LBRAKT expr RBRAKT { Arr_Ref($1, $3) }
+  | MINUS obs_expr         { OUnop(Neg, $2)       }
+  // | OBS LBRAKT expr RBRAKT { Arr_Ref($1, $3)      }
   | LPAREN obs_expr RPAREN { $2                   }
 
 
