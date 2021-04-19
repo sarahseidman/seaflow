@@ -1,0 +1,26 @@
+void testInt(int a, int b) {
+    printi(a + b);
+    printi(a - b);
+    printi(a * b);
+    printi(a / b);
+    printi(if(a == b) 1 else 0);
+    printi(if(a == a) 1 else 0);
+    printi(if(a != b) 1 else 0);
+    printi(if(a != a) 1 else 0);
+    printi(if(a > b) 1 else 0);
+    printi(if(a >= b) 1 else 0);
+    printi(if(a < b) 1 else 0);
+    printi(if(a <= b) 1 else 0);
+    printi(a && b);
+    printi(a || b);
+}
+
+void foo() {
+  int c = 42;
+  int d = 3;
+
+  testInt(c, d);
+  testInt(d, d);
+}
+
+foo();

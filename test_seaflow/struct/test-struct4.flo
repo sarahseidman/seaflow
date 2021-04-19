@@ -1,0 +1,14 @@
+struct Foo {
+    int i;
+    int j;
+    char c;
+};
+
+int bar(int i, int j, char c) {
+    struct Foo foo = {i, j, c};
+    printi(foo.i);
+    printi(foo.j);
+    printc(foo.c);
+}
+
+bar(4, 2, 'x');

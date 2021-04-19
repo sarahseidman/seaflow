@@ -1,0 +1,12 @@
+int cond(int i) {
+  return if(i == 1) 42 else if (i == 0) 17 else 4;
+}
+
+int baz() {
+  printi(cond(1));
+  printi(cond(0));
+  printi(cond(-1));
+  return 0;
+}
+
+baz();
