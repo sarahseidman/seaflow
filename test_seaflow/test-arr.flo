@@ -1,5 +1,5 @@
-int[] a = [1,2,3];
-/*
+int[] a = [1,2,3,5];
+
 printi(a[0]);
 printi(a[1]);
 printi(a[2]);
@@ -20,11 +20,10 @@ int[] copy = a;
 printi(copy[0]);
 
 char[] ccopy = b;
-printc(ccopy[2]);*/
-/*
+printc(ccopy[2]);
+
 int foo() {
     int[] d = [1,2,3];
-    int y = 4;
     int[] x = d;
     return x.length;
 }
@@ -33,12 +32,12 @@ float bar() {
     float[] fl = [0.1, 2.3, 4.5];
     float[] flo = fl;
     return flo[2];
-} */
-/*
+}
+
 printi(foo());
 printf(bar());
 
-int len = a.length;
+int len = f.length;
 printi(len);
 
 int[] t = if (3 > 4) [1,2,3] else [4,5,6,7,8];
@@ -49,4 +48,9 @@ printi(t[t_len-1]);
 int arr_return(int[] a) {
     return a[0];
 }
-*/
+
+int arr_return2(int[] x) {
+    return if (x[0] > x[2]) x.length else x[0];
+}
+
+printi(arr_return2([2,3,4]));

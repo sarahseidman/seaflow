@@ -115,7 +115,6 @@ stmt:
 // vdecls
   | typ ID ASSIGN expr SEMI                  { Decl($1, $2, $4) }
   | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
-  | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Decl($1, $2, List.rev $5) }
   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Def($2, List.rev $4) }
 
 

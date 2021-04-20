@@ -79,11 +79,7 @@ let translate (globs) =
         A.Float -> L.const_float float_t 0.0
       | A.Int   -> L.const_int i32_t 0
       | A.Char  -> L.const_int i8_t 0
-      | A.Arr(ty) -> 
-        let ar_ty = L.type_of v in
-        let len = L.array_length ar_ty in
-        let a = Array.make len (init ty) in
-        L.const_array (ltype_of_typ ty) a
+      | A.Arr(ty) -> L.const_null (L.type_of v)
       | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
       | A.Struct(x) ->
         let (ty, tlist, flist) = StringHash.find global_structs ("struct " ^ x) in
@@ -122,28 +118,17 @@ let translate (globs) =
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
     | SAliteral (ty, a) ->
-      (* let len = List.length a in
-      let ty' = ltype_of_typ ty in
-      let a' = List.map (expr vars builder) a in
-      L.const_array ty' (Array.of_list a') *)
-      if List.length a = 0
-        then raise (Failure "empty array init is not supported")
-        else
-          let all_elem = List.map (fun e ->
-              expr vars builder e) a in
-          let llarray_t = L.type_of (List.hd all_elem) in
-          let num_elems = List.length a in
-          let ptr = L.build_array_malloc llarray_t
-              (L.const_int i32_t num_elems) "" builder 
-          in
-          ignore (List.fold_left (fun i elem ->
-              let idx = L.const_int i32_t i in
-              let eptr = L.build_gep ptr [|idx|] "" builder in
-              let cptr = L.build_pointercast eptr 
-                  (L.pointer_type (L.type_of elem)) "" builder in
-              let _ = (L.build_store elem cptr builder) 
-              in i+1)
-              0 all_elem); ptr
+      let elems = List.map (expr vars builder) a in
+      let arr_t = ltype_of_typ ty in
+      let num = List.length elems in
+      let ptr = L.build_array_alloca arr_t (L.const_int i32_t num) "a" builder in
+      let add_store i e = 
+        let idx = L.const_int i32_t i in
+        let eptr = L.build_gep ptr [|idx|] "e" builder in
+        let cptr = L.build_pointercast eptr (L.pointer_type (L.type_of e)) "p" builder in
+        L.build_store e cptr builder; i+1
+      in
+      add_store 0 (L.const_int i32_t num) ; List.fold_left add_store 1 elems ; ptr
     | SRef(str_name, type_of_struct, fieldname) ->
       let loc = lookup vars str_name in
       let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
@@ -156,27 +141,20 @@ let translate (globs) =
       let p = L.build_struct_gep loc idx "tmp" builder in
       L.build_load p "z" builder
     | SArr_Ref(s, e) ->
-      (* let arr = lookup vars s in
       (* how to check for out of bounds index? *)
-      let e' = expr vars builder e in
-      let p = L.build_struct_gep arr 0 "tmp" builder in
-      let p' = L.build_in_bounds_gep p [|e'|] "tmp" builder in
-      L.build_load p' "tmp" builder *)
       let arr_var = lookup vars s in
-      (* let arr_var = expr vars builder arr in *)
+      let arr_var' = L.build_load arr_var "a" builder in
       let idx = expr vars builder e in 
-      let ptr = 
-        L.build_load (L.build_gep arr_var 
-                        [| idx |] "" builder) 
-          "" builder 
+      let sum = L.build_add idx (L.const_int i32_t 1) "sum" builder in
+      let ptr = L.build_load (L.build_gep arr_var' [| sum |] "" builder) "a" builder 
       in ptr
     | SLen(s) ->
       let arr = lookup vars s in
-      let p = L.type_of arr in
-      (* print_endline ("typ=" ^ string_of_lltype p) ; *)
-      let ltyp = L.element_type p in
-      let len = L.array_length ltyp in
-      L.const_int i32_t len
+      let arr' = L.build_load arr "a" builder in
+      let idx = L.const_int i32_t 0 in 
+      let len = L.build_gep arr' [| idx |] "" builder in
+      let ptr = L.build_pointercast len (L.pointer_type (L.type_of idx)) "lptr" builder in
+      L.build_load ptr "a" builder
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -269,17 +247,7 @@ let translate (globs) =
     let build_local_stmt builder = function
         SExpr e -> ignore(expr local_vars builder e)
       | SDecl(t, s, e) -> let e' = expr local_vars builder e in
-          let arr_special_case ty = (match ty with
-            A.Arr(x) -> let ltyp = L.type_of e' in ignore(add_local_arr s e' ltyp)
-            | _ -> ignore(add_formal (ty, s) e')
-          ) in
-          ignore(arr_special_case t)
-      | SArr_Decl(ty, str, expr_list) ->
-          let e' = List.map (expr local_vars builder) expr_list in
-          let num = List.length expr_list in
-          let ltyp = L.array_type (ltype_of_typ ty) num in
-          let contents = L.const_array ltyp (Array.of_list e') in
-          ignore(add_local_arr str contents ltyp)
+          ignore(add_formal (t, s) e')
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
@@ -312,14 +280,6 @@ let translate (globs) =
         let init = L.const_struct context (Array.of_list expr_list') in
         let store = L.define_global str init the_module in
         StringHash.add global_vars str store ; builder
-    | SArr_Decl(ty, str, expr_list) ->
-        (* let expr_list' = List.map (expr global_vars builder) expr_list in
-        let ty' = ltype_of_typ ty in
-        let init = L.const_array ty' (Array.of_list expr_list') in
-        let store = L.define_global str init the_module in
-        StringHash.add global_vars str store ; builder *)
-        let e' = expr global_vars builder (ty, SAliteral(ty, expr_list)) in
-        let _ = add_global_var (ty, str, e', builder) in builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
   in

@@ -36,7 +36,6 @@ stmt =
   | Return of expr
   | Print of expr
   | Decl of typ * string * expr
-  | Arr_Decl of typ * string * expr list
   | Str_Decl of typ * string * expr list
   | Str_Def of string * bind list
 
@@ -115,6 +114,7 @@ let rec string_of_expr = function
     Literal(l) -> string_of_int l
   | Fliteral(l) -> l
   | Chliteral(l) -> "'" ^ String.make 1 l ^ "'"
+  | Aliteral(l) -> "[" ^ String.concat "," (List.map string_of_expr l) ^ "]"
   | Id(s) -> s
   | Sid(s) -> s
   | Binop(e1, o, e2) ->
@@ -142,8 +142,6 @@ string_of_stmt = function
   | Return(expr) -> "return " ^ string_of_expr expr ^ ";\n";
   | Print(expr) -> "print(" ^ string_of_expr expr ^ ");\n"
   | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
-  | Arr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^ 
-      String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
   | Str_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
       String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 

@@ -31,7 +31,6 @@ sstmt =
   | SReturn of sexpr
   | SPrint of sexpr
   | SDecl of typ * string * sexpr
-  | SArr_Decl of typ * string * sexpr list
   | SStr_Decl of typ * string * sexpr list
   | SStr_Def of string * bind list
 
@@ -76,6 +75,7 @@ let rec string_of_sexpr (t, e) =
     SLiteral(l) -> string_of_int l
   | SFliteral(l) -> l
   | SChliteral(l) -> "'" ^ String.make 1 l ^ "'"
+  | SAliteral(_, l) -> "[" ^ String.concat "," (List.map string_of_sexpr l) ^ "]"
   | SId(s) -> "(id: " ^ s ^ ")"
   | SSid(s) -> "(struct: " ^ s ^ ")"
   | SBinop(e1, o, e2) ->
@@ -86,7 +86,6 @@ let rec string_of_sexpr (t, e) =
   | SBCall(s, el) -> (* Built-in function call *)
       s ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SArr_Ref(s, e) -> s ^ "[" ^ string_of_sexpr e ^ "]"
-  (* | SRef(e, _, s) -> string_of_sexpr e ^ "." ^ s *)
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2
   | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
       ^ string_of_sexpr e3
@@ -107,8 +106,6 @@ string_of_sstmt = function
   | SReturn(sexpr) -> "return " ^ string_of_sexpr sexpr ^ ";\n";
   | SPrint(expr) -> "print(" ^ string_of_sexpr expr ^ ");\n"
   | SDecl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_sexpr expr ^ ";\n"
-  | SArr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^ 
-      String.concat ", " (List.map string_of_sexpr expr_list) ^ "];\n"
   | SStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
       String.concat ", " (List.map string_of_sexpr expr_list) ^ "};\n"
   | SStr_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
