@@ -66,7 +66,7 @@ let translate (globs) =
 
   and obv_t = L.named_struct_type context "observable" in
   let obv_pt = L.pointer_type obv_t in
-  ignore(L.struct_set_body obv_t [| i32_t; void_ptr_t; void_ptr_t |] false);
+  ignore(L.struct_set_body obv_t [| void_ptr_t; void_ptr_t; void_ptr_t; void_ptr_t |] false);
 
   let printf_t : L.lltype =
     L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
@@ -320,41 +320,85 @@ let translate (globs) =
   in
 
 
+  let make_observable (_, s, e') builder =
+
+    let v_store = L.define_global "me" (L.const_int i32_t 0) the_module in
+    let _ = L.build_store e' v_store builder in
+
+    let obv_ptr = L.build_malloc obv_t "__new_obv_ptr" builder in
+    let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
+    (* let () = printf "function name= %s wo\n%!" s in *)
+    L.build_store obv_ptr store builder;
+    StringHash.add global_vars s store;
+
+    let v_ptr = L.build_struct_gep obv_ptr 0 "__curentValue" builder in
+    let v_store_as_i8 = L.build_bitcast v_store void_ptr_t "dataptr_as_i8" builder in
+    ignore(L.build_store v_store_as_i8 v_ptr builder);
+
+    obv_ptr
+  in
 
   let build_obs_stmt builder = function
       SObs(t, e) -> builder
 
     | SODecl(lt, s, e) ->
       let e' = expr global_vars builder e in
-      (* let _ = add_global_var (t, s, e', builder) in *)
-
-      let v_store = L.define_global "me" (L.const_int i32_t 0) the_module in
-      let _ = L.build_store e' v_store builder in
-
-      (* let store = L.define_global s (L.const_null obv_pt) the_module in *)
-      let obv_ptr = L.build_malloc obv_t "__new_obv_ptr" builder in
-      (* ignore(L.build_store e' store builder); *)
-      ignore(StringHash.add global_vars s obv_ptr);
-      (* let _ = add_global_var (t, s, e', builder) in builder *)
-
-      let v_ptr = L.build_struct_gep obv_ptr 1 "recent" builder in
-      let v_store_as_i8 = L.build_bitcast v_store void_ptr_t "dataptr_as_i8" builder in
-      ignore(L.build_store v_store_as_i8 v_ptr builder);
-
-
-      builder
+      make_observable (lt, s, e') builder ; builder
     | SOOAssign(lt, s, e) ->
       (* let (rt, e') = expr vars e in
       let lt = type_of_identifier vars s in
       SOAssign(lt, s, (rt, e')); *)
       builder
-    | SSubscribe(s, e, oe) ->
-      let oe' = oexpr global_vars builder oe in
+    | SSubscribe(_, e, oe) ->
+      (* e:  function expression
+        oe: the observalbe we want to subscribe
+      *)
 
-      
-      (* let (ft, e') = expr vars e in
-      let (ot, oe') = oexpr vars oe in; *)
-      builder
+      (*
+        1. Create new observable
+          1.1. allocate value holder in the stack
+          1.2. malloc observable in the heap
+          1.3. store function pointer to observable
+          1.4. store 1.1 to observable
+        2. Connect to upstream
+          2.1. go to upstream and store itself as the child
+          2.2. copy upstreamValue address to itself
+          2.3. 
+        3. Call function on upstream value
+      *)
+      let func_ptr = expr global_vars builder e in
+      (* print_endline (L.string_of_lltype (L.type_of func_ptr)) ; *)
+      let upstream = oexpr global_vars builder oe in
+      (* TODO: actually pass in type, name *)
+      let obs = make_observable (upstream, "sub_obs", L.const_int i32_t 0) builder in
+      let obs_fp = L.build_struct_gep obs 2 "__function" builder in
+      let f_store_as_i8 = L.build_bitcast func_ptr void_ptr_t "dataptr_as_i8" builder in
+      ignore(L.build_store f_store_as_i8 obs_fp builder);
+
+      let ups_child = L.build_struct_gep upstream 3 "__child" builder in
+      let child_store_as_i8 = L.build_bitcast obs void_ptr_t "child_as_i8" builder in
+      ignore(L.build_store child_store_as_i8 ups_child builder);
+
+      let upstream_val = L.build_struct_gep upstream 0 "__upstreamValue" builder in
+      let up_val_dest = L.build_struct_gep obs 1 "__downupValue" builder in
+      let up_loaded = L.build_load upstream_val "ups" builder in
+      L.build_store up_loaded up_val_dest builder ;
+
+      (* 3 *)
+      let i8_as_orignal = L.build_bitcast up_loaded (L.pointer_type (i32_t)) "i8_to_original" builder in
+      let upval = L.build_load i8_as_orignal "param" builder in
+      let tt = match (fst e) with
+        | Func(_, t) -> t
+        | _ -> raise (Failure ("Needs to be a function"))
+      in
+      let result = (match tt with
+                     A.Void -> ""
+                   | _ -> "f_result") in
+      L.build_call func_ptr [| upval |] result builder
+
+
+
+      ; builder
     | _ -> raise (Failure ("Not Implemented 2100"))
   in
 

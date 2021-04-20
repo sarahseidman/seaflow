@@ -40,8 +40,7 @@ stack 5
 }: $a
 
 subscribe($a, printi)
-{  
-    i32,
+{
     i8* currentValue;   -> stack NULL
     i8* upstreamValue;  -> stack 5  (in the future this should be linkedlist)
     i8* func;   -> printi
@@ -57,10 +56,92 @@ $a = 6;
 subscribe($a, printi);
 
 {
-    i32,
     i8*,
     i8*,  -> printi
     i8*,
     i8*,
 }
 
+
+
+
+
+==============================================================
+
+int print(int x) {
+    printi(x);
+    return x;
+}
+
+int $a = 5;
+
+subscribe(print, $a);
+
+
+>>>>>>>>>>>>>>>>>>>> translates to >>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+(int) -> (int) print = ((int) -> (int) : (int x;) -> {(void : printi((int : (id: x))));
+return (int : (id: x));
+});
+int$ $a = (int : 5);
+subscribe(((int) -> (int) : (id: print)), (int$ : $a));
+
+
+
+
+>>>>>>>>>>>>>>>>>>>> translates to >>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+
+; ModuleID = 'Seaflow'
+source_filename = "Seaflow"
+
+%observable = type { i8*, i8*, i8*, i8* }
+
+@fmt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@print = global i32 (i32)* null
+@me = global i32 0
+@"$a" = global %observable* null
+@me.1 = global i32 0
+@sub_obs = global %observable* null
+
+declare i32 @printf(i8*, ...)
+
+define i32 @main() {
+entry:
+  store i32 (i32)* @user_func, i32 (i32)** @print
+  store i32 5, i32* @me
+  %malloccall = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i64), i64 4) to i32))
+  %__new_obv_ptr = bitcast i8* %malloccall to %observable*
+  store %observable* %__new_obv_ptr, %observable** @"$a"
+  %__curentValue = getelementptr inbounds %observable, %observable* %__new_obv_ptr, i32 0, i32 0
+  store i8* bitcast (i32* @me to i8*), i8** %__curentValue
+  %print = load i32 (i32)*, i32 (i32)** @print
+  %"$a" = load %observable*, %observable** @"$a"
+  store i32 0, i32* @me.1
+  %malloccall1 = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i64), i64 4) to i32))
+  %__new_obv_ptr2 = bitcast i8* %malloccall1 to %observable*
+  store %observable* %__new_obv_ptr2, %observable** @sub_obs
+  %__curentValue3 = getelementptr inbounds %observable, %observable* %__new_obv_ptr2, i32 0, i32 0
+  store i8* bitcast (i32* @me.1 to i8*), i8** %__curentValue3
+  %__function = getelementptr inbounds %observable, %observable* %__new_obv_ptr2, i32 0, i32 2
+  %dataptr_as_i8 = bitcast i32 (i32)* %print to i8*
+  store i8* %dataptr_as_i8, i8** %__function
+  %__child = getelementptr inbounds %observable, %observable* %"$a", i32 0, i32 3
+  %child_as_i8 = bitcast %observable* %__new_obv_ptr2 to i8*
+  store i8* %child_as_i8, i8** %__child
+  ret i32 0
+}
+
+define i32 @user_func(i32 %x) {
+entry:
+  %x1 = alloca i32
+  store i32 %x, i32* %x1
+  %x2 = load i32, i32* %x1
+  %printf = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @fmt, i32 0, i32 0), i32 %x2)
+  %x3 = load i32, i32* %x1
+  ret i32 %x3
+}
+
+declare noalias i8* @malloc(i32)

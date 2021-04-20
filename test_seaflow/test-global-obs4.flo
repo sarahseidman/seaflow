@@ -1,3 +1,9 @@
+int print(int x) {
+    printi(x);
+    return x;
+}
+
+
 int $a = 5;
 
-subscribe(printi, $a)
+subscribe(print, $a);
