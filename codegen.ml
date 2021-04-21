@@ -136,6 +136,23 @@ let translate (globs) =
       L.build_select e1' e2' e3' "tmp" builder
     | SFuncExpr(params, rt, sstmts) ->
       build_function (params, rt, sstmts)
+    | SBinop ((A.Float,_ ) as e1, op, e2) ->
+      let e1' = expr vars builder e1
+      and e2' = expr vars builder e2 in
+      (match op with 
+        A.Add     -> L.build_fadd
+      | A.Sub     -> L.build_fsub
+      | A.Mult    -> L.build_fmul
+      | A.Div     -> L.build_fdiv 
+      | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
+      | A.Neq     -> L.build_fcmp L.Fcmp.One
+      | A.Less    -> L.build_fcmp L.Fcmp.Olt
+      | A.Leq     -> L.build_fcmp L.Fcmp.Ole
+      | A.Greater -> L.build_fcmp L.Fcmp.Ogt
+      | A.Geq     -> L.build_fcmp L.Fcmp.Oge
+      | A.And | A.Or ->
+          raise (Failure "internal error: semant should have rejected and/or on float")
+      ) e1' e2' "tmp" builder
     | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in

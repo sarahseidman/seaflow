@@ -35,8 +35,8 @@ let check (globs) =
   in
 
   let _ = StringHash.add global_vars "printi" (Func([Int], Void)) in
-  let _ = StringHash.add global_vars "printf" (Func([Int], Float)) in
-  let _ = StringHash.add global_vars "printc" (Func([Int], Char)) in
+  let _ = StringHash.add global_vars "printf" (Func([Float], Float)) in
+  let _ = StringHash.add global_vars "printc" (Func([Char], Char)) in
 
   (*
   let built_in_decls = 
@@ -158,8 +158,8 @@ let check (globs) =
                             arguments in  ^ string_of_expr call"))
         else let check_call ft e = 
           let (et, e') = expr vars e in 
-          let err = "illegal argument found  ^ string_of_typ et ^
-              expected  ^ string_of_typ ft ^  in  ^ string_of_expr e"
+          let err = "illegal argument found " ^ string_of_typ et ^
+              " expected "  ^ string_of_typ ft ^ " in " ^ string_of_expr e
           in (check_assign ft et err, e')
         in 
         let args' = List.map2 check_call formals args in
