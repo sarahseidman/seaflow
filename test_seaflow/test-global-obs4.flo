@@ -1,4 +1,4 @@
-int print(int x) {
+int apple(int x) {
     printi(x);
     return x;
 }
@@ -6,4 +6,4 @@ int print(int x) {
 
 int $a = 5;
 
-subscribe(print, $a);
+subscribe(apple, $a);

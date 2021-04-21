@@ -55,6 +55,7 @@ type oexpr =
   | OBinop3 of oexpr * op * oexpr  (* For combine operation *)
   | OUnop of uop * oexpr 
   | Map of expr * oexpr
+  | Combine of expr * oexpr * oexpr
 
 
 type obs_stmt = 
@@ -168,6 +169,8 @@ let rec string_of_oexpr = function
     string_of_oexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_oexpr e2
   | OUnop(o, e) -> string_of_uop o ^ string_of_oexpr e
   | Map(e, oe) -> "map(" ^ string_of_expr e ^ ", " ^ string_of_oexpr oe ^ ")"
+  | Combine(e, oe1, oe2) -> "combine(" ^ string_of_expr e ^ ", " ^
+      string_of_oexpr oe1 ^ ", " ^ string_of_oexpr oe2 ^ ")"
 
 
 let string_of_obs_stmt = function

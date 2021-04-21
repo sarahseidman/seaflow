@@ -304,12 +304,42 @@ let check (globs) =
       let (t, e') = expr vars e in
       let (ot, oe') = oexpr vars oe in
 
-      let obs_typ = match t with
-        | Func(_, rt) -> Observable rt
+      let (args, rt) = match t with
+        | Func(args, rt) -> (args, rt)
         | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
                                    " with map()"))
       in
-      (obs_typ, SMap((t, e'), (ot, oe')))
+
+      let it' = match ot with
+        | Observable x -> x
+        | _ as x -> raise (Failure ("second arguement of map must be an observable"))
+      in let _ = match args with
+        | [a] when a = it' -> ()
+        | _ -> raise (Failure ("map function type does not match"))
+      in
+      (Observable rt, SMap((t, e'), (ot, oe')))
+    | Combine(e, oe1, oe2) -> 
+      let (t, e') = expr vars e in
+      let (ot1, oe1') = oexpr vars oe1 in
+      let (ot2, oe2') = oexpr vars oe2 in
+
+      let (args, rt) = match t with
+        | Func(args, rt) -> (args, rt)
+        | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
+                                    " with map()"))
+      in
+
+      let it1' = match ot1 with
+        | Observable x -> x
+        | _ as x -> raise (Failure ("second arguement of map must be an observable"))
+      in let it2' = match ot2 with
+        | Observable x -> x
+        | _ as x -> raise (Failure ("third arguement of map must be an observable"))
+      in let _ = match args with
+        | [a;b] when a = it1' && b = it2' -> ()
+        | _ -> raise (Failure ("map function type does not match"))
+      in
+      (Observable rt, SCombine((t, e'), (ot1, oe1'), (ot2, oe2')))
     | _ -> raise (Failure ("Not Implemented 1020"))
   in
 
