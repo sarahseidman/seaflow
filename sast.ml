@@ -51,6 +51,7 @@ and sox =
   | SOBinop3 of soexpr * op * soexpr  (* For combine operation *)
   | SOUnop of uop * soexpr
   | SMap of sexpr * soexpr
+  | SCombine of sexpr * soexpr * soexpr
 
 type sobs_stmt = 
     SObs of typ * string 
@@ -136,6 +137,9 @@ let rec string_of_soexpr (t, e) =
     string_of_soexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_soexpr e2
   | SOUnop(o, e) -> string_of_uop o ^ string_of_soexpr e
   | SMap(e, oe) -> "map(" ^ string_of_sexpr e ^ ", " ^ string_of_soexpr oe ^ ")"
+  | SCombine(e, oe1, oe2) -> "combine(" ^ string_of_sexpr e ^ ", " ^
+      string_of_soexpr oe1 ^ ", " ^ string_of_soexpr oe2 ^ ")"
+
   ) ^ ")"
 
 let string_of_sobs_stmt = function
