@@ -1,5 +1,5 @@
 int[] a = [1, 2, 3, 5];
-int y = 0
+int y = 0;
 int z = 2;
 
 printi(a[y]);
