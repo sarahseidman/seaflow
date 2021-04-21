@@ -4,6 +4,7 @@
 open Ast
 %}
 
+%token MAP
 %token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN ARROW DOT
 %token EQ NEQ LT LEQ GT GEQ AND OR
 %token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL
@@ -201,6 +202,8 @@ obs_expr:
   | obs_expr GEQ    obs_expr { OBinop3($1, Geq,   $3)   }
   | obs_expr AND    obs_expr { OBinop3($1, And,   $3)   }
   | obs_expr OR     obs_expr { OBinop3($1, Or,    $3)   }
+
+  | MAP LPAREN expr COMMA obs_expr RPAREN { Map($3, $5) }
 
   | MINUS obs_expr         { OUnop(Neg, $2)       }
   // | OBS LBRAKT expr RBRAKT { Arr_Ref($1, $3)      }

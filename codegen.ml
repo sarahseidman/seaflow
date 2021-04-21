@@ -109,6 +109,10 @@ let translate (globs) =
   let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in
 
 
+  let next_ftype = L.function_type void_t [| obv_pt |] in
+  let next_function = L.define_function "onNext" next_ftype the_module in
+  StringHash.add global_vars "onNext" next_function;
+
 
   let lookup vars n = try StringHash.find vars n
       with Not_found ->
@@ -242,6 +246,9 @@ let translate (globs) =
       let result = (match tt with
                      A.Void -> ""
                    | _ -> "f_result") in
+
+      (* print_endline ("fdef: " ^ (L.string_of_lltype (L.type_of fdef)));  *)
+
       L.build_call fdef (Array.of_list llargs) result builder
     | _ as x -> raise (Failure ("Not Implemented 2003 " ^ (string_of_sexpr (tt, x))))
 
@@ -390,16 +397,18 @@ let translate (globs) =
   in
 
 
-  let make_observable (_, s, e') builder =
+
+
+
+
+
+
+  let make_observable (_, e') builder =
 
     let v_store = L.define_global "me" (L.const_int i32_t 0) the_module in
     let _ = L.build_store e' v_store builder in
 
     let obv_ptr = L.build_malloc obv_t "__new_obv_ptr" builder in
-    let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
-    (* let () = printf "function name= %s wo\n%!" s in *)
-    L.build_store obv_ptr store builder;
-    StringHash.add global_vars s store;
 
     let v_ptr = L.build_struct_gep obv_ptr 0 "__curentValue" builder in
     let v_store_as_i8 = L.build_bitcast v_store void_ptr_t "dataptr_as_i8" builder in
@@ -413,11 +422,35 @@ let translate (globs) =
 
     | SODecl(lt, s, e) ->
       let e' = expr global_vars builder e in
-      make_observable (lt, s, e') builder ; builder
-    | SOOAssign(lt, s, e) ->
-      (* let (rt, e') = expr vars e in
-      let lt = type_of_identifier vars s in
-      SOAssign(lt, s, (rt, e')); *)
+      let obv_ptr = make_observable (lt, e') builder in
+      let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
+      (* let () = printf "function name= %s wo\n%!" s in *)
+      L.build_store obv_ptr store builder;
+      StringHash.add global_vars s store;
+      builder
+    | SOODecl(lt, s, oe) ->
+      let oe' = oexpr global_vars builder oe in
+      let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
+      (* let () = printf "function name= %s wo\n%!" s in *)
+      L.build_store oe' store builder;
+      StringHash.add global_vars s store;
+      builder
+    | SOAssign(lt, s, e) ->
+      let e' = expr global_vars builder e in
+      let obv_ptr = L.build_load (lookup global_vars s) s builder in
+
+      let v_ptr_ptr = L.build_struct_gep obv_ptr 0 "__curentValue" builder in
+      (* let  = L.build_bitcast v_store void_ptr_t "dataptr_as_i8" builder in *)
+      let v_ptr = L.build_load v_ptr_ptr "_curVal" builder in
+      let e_ptr = L.build_bitcast v_ptr (L.pointer_type i32_t) "cur_to_orig" builder in
+      L.build_store e' e_ptr builder;
+
+
+      L.build_call (lookup global_vars "onNext") [| obv_ptr |] "" builder;
+      builder
+
+    | SOOAssign(lt, s, oe) ->
+      (* Maybe we should not allow this *)
       builder
     | SSubscribe(_, e, oe) ->
       (* e:  function expression
@@ -440,9 +473,17 @@ let translate (globs) =
       (* print_endline (L.string_of_lltype (L.type_of func_ptr)) ; *)
       let upstream = oexpr global_vars builder oe in
       (* TODO: actually pass in type, name *)
-      let obs = make_observable (upstream, "sub_obs", L.const_int i32_t 0) builder in
+      let obs = make_observable ((), L.const_int i32_t 0) builder in
+
+      let store = L.define_global "sub_obs" (L.const_null (L.pointer_type obv_t)) the_module in
+      (* let () = printf "function name= %s wo\n%!" s in *)
+      L.build_store obs store builder;
+
+
       let obs_fp = L.build_struct_gep obs 2 "__function" builder in
       let f_store_as_i8 = L.build_bitcast func_ptr void_ptr_t "dataptr_as_i8" builder in
+
+      (*    i32 (i32)*    *)
       ignore(L.build_store f_store_as_i8 obs_fp builder);
 
       let ups_child = L.build_struct_gep upstream 3 "__child" builder in
@@ -472,6 +513,7 @@ let translate (globs) =
     | _ -> raise (Failure ("Not Implemented 2100"))
   in
 
+
   let translate_line glob = match glob with
         SStmt stmt -> ignore(build_global_stmt global_builder stmt)
       | SObs_Stmt obs_stmt -> ignore(build_obs_stmt global_builder obs_stmt)
@@ -482,5 +524,123 @@ let translate (globs) =
   let () = List.iter translate_line globs in
   let () = add_terminal global_builder (L.build_ret (L.const_int i32_t 0)) in
 
+
+  let define_next = 
+    (*
+
+    void onNext(observable* obs) {
+
+    //// I am here
+
+      if (obs->__downstreamObservable != NULL) {
+        observable* d = obs->__downstreamObservable;
+        d->__curr = d->__func(d->__upstreamValue);
+        onNext(d);
+        return;
+      }
+      return;
+    *)
+
+
+    (* Define function *)
+    (* print_endline "defined function" ; *)
+
+    (* Allocate function space *)
+
+    let next_function = StringHash.find global_vars "onNext" in
+    let builder = L.builder_at_end context (L.entry_block next_function) in
+    L.set_value_name "upstream" (L.params next_function).(0);
+    let upstream = L.build_alloca obv_pt "upstream" builder in
+    L.build_store (L.params next_function).(0) upstream builder;
+
+    (* print_endline "allocate function" ; *)
+
+    (* I am here *)
+    (* print_endline (L.string_of_lltype (L.type_of upstream)) ; *)
+    let ups_loaded = L.build_load upstream "__ups" builder in
+    let ups_child_ptr = L.build_struct_gep ups_loaded 3 "__child" builder in  (* ups_child_ptr : i8** *)
+    (* print_endline "allocate function 2" ; *)
+
+    let ups_child = L.build_load ups_child_ptr "__child_dref" builder in    (* ups_child : i8* *)
+    (* print_endline "allocate function 3" ; *)
+
+    let child_as_obs_pt = L.build_bitcast ups_child obv_pt "i8_to_observable" builder in   (* ups_child : observable* *)
+    (* print_endline "allocate function 4" ; *)
+
+    let cond = L.build_icmp L.Icmp.Ne (L.const_pointer_null obv_pt) child_as_obs_pt "tmp" builder in
+
+    (* print_endline "build icmp" ; *)
+
+    (* let build_br_merge = L.build_br merge_bb in *)
+
+    let then_bb = L.append_block context "then" next_function in
+    let then_builder = L.builder_at_end context then_bb in
+
+    (* observable* d = obs->__downstreamObservable; *)
+    let d = L.build_alloca obv_pt "d" then_builder in
+    L.build_store child_as_obs_pt d ;
+    let d' = L.build_load d "__d_loaded" then_builder in
+
+    (* print_endline "observable* d = obs->__downstreamObservable;" ;
+    print_endline ("d: " ^ (L.string_of_lltype (L.type_of d)));
+    print_endline ("d': " ^ (L.string_of_lltype (L.type_of d'))); *)
+
+
+    (* d->__curr = d->__func(d->__upstreamValue); *)
+    let temp_func_pt_typ = L.pointer_type (L.function_type i32_t [| i32_t |]) in
+    (* let temp_func_typ = L.function_type i32_t [| i32_t |] in *)
+
+    let d_func = L.build_struct_gep d' 2 "__func" then_builder in
+
+    (* print_endline ("d_func: " ^ (L.string_of_lltype (L.type_of d_func)));  *)
+
+    (* print_endline "struct gep d_func" ; *)
+    let d_func' = L.build_load d_func "__func2" then_builder in
+    let d_fptr = L.build_bitcast d_func' temp_func_pt_typ "__d_fptr" then_builder in
+    (* print_endline ("d_fptr: " ^ (L.string_of_lltype (L.type_of d_fptr)));  *)
+
+    (* print_endline "after bitcast" ; *)
+    (* let d_func_deref = L.build_load d_fptr "__d_func_itself" then_builder in *)
+    (* print_endline "after load"; *)
+    
+    let d_val_ptr = L.build_struct_gep d' 1 "__d_ups" then_builder in
+    (* print_endline "struct gep dvalptr" ; *)
+    let d_val_cast = L.build_bitcast d_val_ptr (L.pointer_type i32_t) "__d_val" then_builder in
+    let d_val_cast' = L.build_load d_val_cast "__dv_loaded" then_builder in
+    (* let d_val = L.build_alloca i32_t "d_ups_val" then_builder in
+    (* let d_val' = L.build_load d_val "__d_val" then_builder in *)
+    let v_store = L.build_store d_val_cast' d_val then_builder in
+    let to_pass = L.build_load v_store "__param" then_builder in *)
+    (* print_endline "store dvalcast" ; *)
+    (* print_endline ("d_func_deref: " ^ (L.string_of_lltype (L.type_of d_func_deref)));  *)
+    
+    (* print_endline "d->__curr = d->__func" ; *)
+    
+    let f = L.build_load (lookup global_vars "apple") "apple" builder in
+    let result = L.build_call f [| d_val_cast' |] "result" then_builder in
+    (* print_endline "call" ; *)
+    (* let d_curr_ptr = L.build_struct_gep d' 0 "__curentValue" then_builder in
+    let v_ptr = L.build_load d_curr_ptr "_curVal" then_builder in
+    let e_ptr = L.build_bitcast v_ptr (L.pointer_type i32_t) "cur_to_orig" then_builder in
+    L.build_store result e_ptr then_builder; *)
+
+    (* print_endline "d->__curr = d->__func 2" ; *)
+
+    (* onNext(d); *)
+    L.build_call next_function [| d' |] "" then_builder ;
+    
+    let merge_bb = L.append_block context "merge" next_function in
+    let merge_builder = L.builder_at_end context merge_bb in
+
+(* 
+    add_terminal (stmt (L.builder_at_end context then_bb) then_stmt)
+      build_br_merge; *)
+
+
+    L.build_cond_br cond then_bb merge_bb builder;
+    L.build_ret_void then_builder;
+    L.build_ret_void merge_builder;
+    ()
+  in
 
   the_module

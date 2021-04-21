@@ -1,4 +1,12 @@
-int $a = 5;
-int $b = $a + 5;
+int apple(int x) {
+    printi(x);
+    return x;
+}
 
-subscribe(printi, $b);
+
+
+int $a = 5;
+
+subscribe(apple, $a);
+
+$a = 4;
