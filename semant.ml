@@ -259,8 +259,22 @@ let check (globs) =
         | And | Or when same && t1 = Int -> Observable(Int)
         | _ -> raise (Failure ("illegal binary operator  ^
                                 string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
-      in (ty, SOBinop1((ot1, oe1'), op, (t2, e2')))
+                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
+      in (ty, SMap(
+        (Func([t1],t1), SFuncExpr(
+          [(t1, "x")],
+          t1,
+          [SReturn (
+            t1,
+            SBinop(
+              (t1, SId("x")),
+              op,
+              (t2, e2')
+            )
+          )]
+        )),
+        (ot1, oe1')
+      ))
     | OBinop2(e1, op, oe2) ->
       let (t1, e1') = expr vars e1 
       and (ot2, oe2') = oexpr vars oe2 in
@@ -278,7 +292,21 @@ let check (globs) =
         | _ -> raise (Failure ("illegal binary operator  ^
                                 string_of_typ t1 ^  ^ string_of_op op ^  ^
                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
-      in (ty, SOBinop2((t1, e1'), op, (ot2, oe2')))
+      in (ty, SMap(
+        (Func([t2],t2), SFuncExpr(
+          [(t2, "x")],
+          t2,
+          [SReturn (
+            t2,
+            SBinop(
+              (t1, e1'),
+              op,
+              (t2, SId("x"))
+            )
+          )]
+        )),
+        (ot2, oe2')
+      ))
     | OBinop3(oe1, op, oe2) ->
       let (ot1, oe1') = oexpr vars oe1 
       and (ot2, oe2') = oexpr vars oe2 in
@@ -297,7 +325,22 @@ let check (globs) =
         | _ -> raise (Failure ("illegal binary operator  ^
                                 string_of_typ t1 ^  ^ string_of_op op ^  ^
                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
-      in (ty, SOBinop3((ot1, oe1'), op, (ot2, oe2')))
+      in (ty, SCombine(
+        (Func([t1;t2],t1), SFuncExpr(
+          [(t1, "x"); (t2, "y")],
+          t1,
+          [SReturn (
+            t1,
+            SBinop(
+              (t1, SId("x")),
+              op,
+              (t2, SId("y"))
+            )
+          )]
+        )),
+        (ot1, oe1'),
+        (ot2, oe2')
+      ))
     | OUnop(op, oe) ->
       let (ty, oe') = oexpr vars oe in (ty, SOUnop(op, (ty, oe')))
     | Map(e, oe) -> 
