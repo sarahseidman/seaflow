@@ -1,0 +1,9 @@
+char foo(char[] a, int i) {
+    return a[i];
+}
+
+char[] b = ['a', 'b', 'c'];
+
+printc(foo(b, 0));
+printc(foo(b, 1));
+printc(foo(b, 2));

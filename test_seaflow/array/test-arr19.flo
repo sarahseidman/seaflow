@@ -1,0 +1,8 @@
+float foo(float[] a, int i) {
+    return a[i];
+}
+
+float[] b = [1.0, 3.4, 2.1];
+
+printf(foo(b, 0));
+printf(foo(b, 1));

@@ -1,5 +1,5 @@
-char i = 'a';
-char j = 'b';
+char i = '!';
+char j = '#';
 char k = i + j;
 
 printc(i);
