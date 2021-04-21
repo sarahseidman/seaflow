@@ -1,0 +1,16 @@
+int apple(int x) {
+    printi(x);
+    return x;
+}
+
+int increment(int x) {
+    return x + 1;
+}
+
+
+int $a = 5;
+int $b = map(increment, $a);
+subscribe(apple, $b);
+
+$a = 4;
+$a = 7;
