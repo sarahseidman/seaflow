@@ -132,6 +132,7 @@ let check (globs) =
         | Less | Leq | Greater | Geq
                    when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
         | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
         | _ -> raise (Failure ("illegal binary operator  ^
                                 string_of_typ t1 ^  ^ string_of_op op ^  ^
                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
