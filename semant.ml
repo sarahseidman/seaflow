@@ -299,6 +299,16 @@ let check (globs) =
       in (ty, SOBinop3((ot1, oe1'), op, (ot2, oe2')))
     | OUnop(op, oe) ->
       let (ty, oe') = oexpr vars oe in (ty, SOUnop(op, (ty, oe')))
+    | Map(e, oe) -> 
+      let (t, e') = expr vars e in
+      let (ot, oe') = oexpr vars oe in
+
+      let obs_typ = match t with
+        | Func(_, rt) -> Observable rt
+        | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
+                                   " with map()"))
+      in
+      (obs_typ, SMap((t, e'), (ot, oe')))
     | _ -> raise (Failure ("Not Implemented 1020"))
   in
 
