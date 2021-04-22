@@ -276,6 +276,16 @@ let translate (globs) =
       | SDecl(t, s, e) -> let e' = expr local_vars builder e in
           ignore(add_formal (t, s) e')
           (* ignore(add_local (t, s, e', builder)) *)
+      | SStr_Decl(ty, str, expr_list) ->
+        let expr_list' = List.map (expr local_vars builder) expr_list in
+        let init = L.const_struct context (Array.of_list expr_list') in
+        print_endline (L.string_of_lltype (L.type_of init)) ;
+        let dest = L.build_alloca (ltype_of_typ ty) str local_builder in
+        print_endline "after alloc";
+        let store = L.build_store init dest local_builder in
+        print_endline "after store";
+
+        ignore(StringHash.add local_vars str store)
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
