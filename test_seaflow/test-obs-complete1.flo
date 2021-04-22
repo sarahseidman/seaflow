@@ -1,0 +1,10 @@
+int apple(int x) {
+    printi(x);
+    return x;
+}
+
+
+int $a = 5;
+
+subscribe(apple, $a);
+complete($a);

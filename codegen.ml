@@ -500,6 +500,8 @@ let translate (globs) =
       (* 3 *)
       L.build_call (lookup global_vars "onNext") [| upstream |] "" builder;
       builder
+    (* | SComplete(_, oe) -> 
+       *)
     | _ -> raise (Failure ("Not Implemented 2100"))
   in
 

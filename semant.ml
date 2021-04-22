@@ -417,6 +417,9 @@ let check (globs) =
       let (ot, oe') = oexpr vars oe in
       (* Need to check function type *)
       SSubscribe(s, (ft, e'), (ot, oe'))
+    | Complete(s, oe) ->
+      let (ot, oe') = oexpr vars oe in 
+      SComplete(s, (ot, oe'))
     | _ -> raise (Failure ("Not Implemented 1000"))
   in
 
