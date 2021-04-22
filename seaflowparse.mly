@@ -114,7 +114,7 @@ stmt:
   | RETURN expr_opt SEMI                    { Return $2             }
 // vdecls
   | typ ID ASSIGN expr SEMI                  { Decl($1, $2, $4) }
-  | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
+  // | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
   | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Decl($1, $2, List.rev $5) }
   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Def($2, List.rev $4) }
 
@@ -156,6 +156,7 @@ expr:
   | expr OR     expr { Binop($1, Or,    $3)   }
 
   | MINUS expr       { Unop(Neg, $2)          }
+  | LBRACE args_list RBRACE                   { Sliteral(List.rev $2)}
   | ID LBRAKT expr RBRAKT                     { Arr_Ref($1, $3)  }
   | ID LPAREN args_opt RPAREN                 { Call(Id($1), $3) }
   | LPAREN expr RPAREN LPAREN args_opt RPAREN { Call($2, $5)     }
