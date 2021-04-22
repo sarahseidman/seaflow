@@ -223,7 +223,12 @@ let check (globs) =
 
     let param_types = List.map fst params in
 
-    let rtype = match list_last sbody with
+    let check_empty = match sbody with
+      | [] -> raise (Failure ("a function cannot have an empty body"))
+      | _ -> list_last sbody
+    in
+
+    let rtype = match check_empty with
       | SReturn(t, e) -> t
       | _ -> Void
     in
