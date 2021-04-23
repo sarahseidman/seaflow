@@ -1,0 +1,16 @@
+int apple(int x) {
+    printi(x);
+    return x;
+}
+
+int $a = 5;
+
+subscribe(apple, $a);     /* 5           */
+subscribe(apple, $a);     /* 5           */
+subscribe(apple, $a);     /* 5           */
+subscribe(apple, $a);     /* 5           */
+
+
+
+
+$a = 50;                  /* 50 50 50 50 */
