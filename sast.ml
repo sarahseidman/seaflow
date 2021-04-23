@@ -31,7 +31,6 @@ sstmt =
   | SPrint of sexpr
   | SDecl of typ * string * sexpr
   | SArr_Decl of typ * string * sexpr list
-  (* | SStr_Decl of typ * string * sexpr list *)
   | SStr_Def of string * bind list
 
 
@@ -107,8 +106,6 @@ string_of_sstmt = function
   | SDecl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_sexpr expr ^ ";\n"
   | SArr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^ 
       String.concat ", " (List.map string_of_sexpr expr_list) ^ "];\n"
-  (* | SStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
-      String.concat ", " (List.map string_of_sexpr expr_list) ^ "};\n" *)
   | SStr_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 

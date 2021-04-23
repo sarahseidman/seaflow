@@ -36,7 +36,6 @@ stmt =
   | Print of expr
   | Decl of typ * string * expr
   | Arr_Decl of typ * string * expr list
-  (* | Str_Decl of typ * string * expr list *)
   | Str_Def of string * bind list
 
 
@@ -141,8 +140,6 @@ string_of_stmt = function
   | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
   | Arr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^ 
       String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
-  (* | Str_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
-      String.concat ", " (List.map string_of_expr expr_list) ^ "};\n" *)
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 

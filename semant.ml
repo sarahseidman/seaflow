@@ -170,8 +170,10 @@ let check (globs) =
                             arguments in  ^ string_of_expr call"))
         else let check_call ft e = 
           (* structs are a special case - we compare struct body to struct literal *)
-          let ft = if (is_struct ft) then (find_body ft) else ft in
+          let ft_is_struct = (is_struct ft) in
+          let ft = if ft_is_struct then (find_body ft) else ft in
           let (et, e') = expr vars e in 
+          let et = if ft_is_struct then find_body et else et in
           let err = "illegal argument found " ^ string_of_typ et ^
               " expected "  ^ string_of_typ ft ^ " in " ^ string_of_expr e
           in (check_assign ft et err, e')
@@ -197,16 +199,6 @@ let check (globs) =
       (* if t = func.typ then SReturn (t, e') 
       else raise (Failure ("return gives  ^ string_of_typ t ^  expected  ^
                             string_of_typ func.typ ^  in  ^ string_of_expr e")) *)
-    (* | Str_Decl(t, s, expr_list) ->
-      StringHash.add vars s t ;
-      let check_sdecl (t, expr_list) =
-        let l = try StringHash.find struct_defs (string_of_typ t)
-          with Not_found -> raise (Failure ("undeclared struct " ^ string_of_typ t))
-        in if List.length l == List.length expr_list then () else raise (Failure ("incorrect arguments number for " ^ string_of_typ t))
-      in
-      let _ = check_sdecl(t, expr_list) in
-      let expr_list' = List.map (expr vars) expr_list
-      in SStr_Decl(t, s, expr_list') *)
     | Str_Def(s, b_list) ->
       let tlist = List.map fst b_list in
       let name = ("struct " ^ s) in
