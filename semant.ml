@@ -114,14 +114,26 @@ let check (globs) =
         | SId(x) -> x
         | _ -> raise (Failure ("Struct field")) 
       in
-      (* let str_name = Id(string_of_expr e) in *)
-      let l = try StringHash.find struct_defs (string_of_typ t')
-        with Not_found -> raise (Failure (string_of_expr e ^ " is not a struct")) in
-      let element = List.find_opt (match_struct_element_name s) l in
-      let element_type = match element with
-        | Some (t2, _) -> t2 
-        | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
-      in (element_type, SRef(str_name, string_of_typ t', s))
+      let struct_ref ty str = 
+        let l = StringHash.find struct_defs (string_of_typ ty) in
+        let element = List.find_opt (match_struct_element_name str) l in
+        let element_type = match element with
+          | Some (t2, _) -> t2 
+          | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
+        in (element_type, SRef(str_name, string_of_typ ty, str))
+      in
+      let arr_len name str = 
+        let _ = if (str = "length") then () else raise (Failure ("invalid reference: is not struct or array length")) in
+        let ty = type_of_identifier vars name in 
+        let _ = try typ_of_arr ty
+            with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
+        (Int, SLen(name))
+      in
+      let found = StringHash.mem struct_defs (string_of_typ t') in
+      let ret = match found with 
+        false -> arr_len str_name s
+        | true -> struct_ref t' s
+      in ret
     | Sliteral(expr_list) -> 
       let e' = List.map (expr vars) expr_list in
       let ty = List.map fst e' in
@@ -133,11 +145,6 @@ let check (globs) =
       let _ = if idx_ty = Int then () 
           else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
       (ty, SArr_Ref(s, (idx_ty, e')))
-    | Len(s) ->
-      let ty = type_of_identifier vars s in 
-      let _ = try typ_of_arr ty
-          with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
-      (Int, SLen(s))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1

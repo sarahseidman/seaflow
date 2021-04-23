@@ -7,7 +7,7 @@ open Ast
 %token MAP COMBINE
 %token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN ARROW DOT
 %token EQ NEQ LT LEQ GT GEQ AND OR
-%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL LEN
+%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL
 %token <int> LITERAL
 %token <string> ID FLIT OBS SID
 %token <char> CHLIT
@@ -138,7 +138,6 @@ expr:
   | CHLIT            { Chliteral($1)          }
   | ID               { Id($1)                 }
   | SID              { Sid($1)                }
-  | ID DOT LEN       { Len($1)                }
   | expr DOT ID      { Ref($1, $3)            }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }

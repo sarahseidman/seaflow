@@ -43,7 +43,6 @@ rule token = parse
 | "char"   { CHAR }
 | "void"   { VOID }
 | "struct" { STRUCT }
-| "length" { LEN }
 | "map"    { MAP }
 | "combine" { COMBINE }
 | charlit as lxm { CHLIT(lxm.[1])}
