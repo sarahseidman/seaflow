@@ -25,7 +25,6 @@ type expr =
   | Call of expr * expr list
   | Ref of expr * string
   | Arr_Ref of string * expr
-  | If of expr * expr * expr
   | FuncExpr of bind list * stmt list
   | Sliteral of expr list
   | Len of string
@@ -36,6 +35,7 @@ and stmt =
     Block of stmt list
   (* | Obs of string *)
   | Expr of expr
+  | If of typ * string * expr * expr * expr
   | Return of expr
   | Print of expr
   | Decl of typ * string * expr
@@ -141,8 +141,8 @@ let rec string_of_expr = function
     string_of_expr ef ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Ref(e, s) -> string_of_expr e ^ "." ^ s
   | Arr_Ref(s, e) -> s ^ "[" ^ string_of_expr e ^ "]"
-  | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
-      ^ string_of_expr e3
+  (* | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
+      ^ string_of_expr e3 *)
   | FuncExpr(bind_list, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"

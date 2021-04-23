@@ -188,11 +188,11 @@ let translate (globs) =
       let len = L.build_gep arr' [| idx |] "" builder in
       let ptr = L.build_pointercast len (L.pointer_type (L.type_of idx)) "lptr" builder in
       L.build_load ptr "a" builder
-    | SIf (e1, e2, e3) ->
+    (* | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
       and e3' = expr vars builder e3 in
-      L.build_select e1' e2' e3' "tmp" builder
+      L.build_select e1' e2' e3' "tmp" builder *)
     | SFuncExpr(params, rt, sstmts) ->
       build_function (params, rt, sstmts)
     (*| SBinop ((A.Float,_ ) as e1, op, e2) ->

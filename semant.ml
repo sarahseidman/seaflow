@@ -139,7 +139,7 @@ let check (globs) =
           with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
       (Int, SLen(s))
     | Noexpr     -> (Void, SNoexpr)
-    | If (e1, e2, e3) ->
+    (* | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
         and (t2, e2') = expr vars e2
         and (t3, e3') = expr vars e3 in
@@ -151,7 +151,7 @@ let check (globs) =
         | Char when same -> Char
         | Arr(x) when same -> Arr(x)
         | _ -> raise (Failure ("illegal if; types must match"))
-        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
+        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3'))) *)
     | Binop(e1, op, e2) as e -> 
         let (t1, e1') = expr vars e1 
         and (t2, e2') = expr vars e2 in
@@ -242,6 +242,29 @@ let check (globs) =
         | s :: ss         -> let parsed_stmt = check_stmt v s in parsed_stmt :: check_stmt_list v ss
         | []              -> []
       in SBlock(check_stmt_list vars sl)
+    | If(ltyp, var, cond, e1, e2) ->
+      let (tc, c') = expr vars cond
+      and (t1, e1') = expr vars e1
+      and (t2, e2') = expr vars e2 in
+      let same = t1 = t2 in
+      (* e1 and e2 must be same type *)
+      let rtyp = match t1 with
+        Int when same -> Int
+      | Float when same -> Float
+      | Char when same -> Char
+      | Arr(x) when same -> Arr(x)
+      | _ -> raise (Failure ("illegal if; types must match in then and else branches")) in
+      let same2 = ltyp = rtyp in
+      let valid_assign = match ltyp with
+        Int when same2 -> Int
+      | Float when same2 -> Float
+      | Char when same2 -> Char
+      | Arr(x) when same2 -> Arr(x)
+      | _ -> raise (Failure ("illegal if; types must match for lval and rval")) in
+      let ctyp = match tc with
+        Int -> Int
+      | _   -> raise (Failure ("illegal if; condition type must be Int")) in
+      SIf(ltyp, var, (tc, c'), (t1, e1'), (t2, e2'))
 
 
   and check_func_decl vars anon_func : (Ast.typ * Ast.typ * Sast.sstmt list) = 
