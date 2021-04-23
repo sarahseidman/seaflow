@@ -73,13 +73,21 @@ let translate (globs) =
 
   and obv_t = L.named_struct_type context "observable" in
   let obv_pt = L.pointer_type obv_t in
+  let subscription_t  = L.named_struct_type context "subscription" in
+  let subscription_pt = L.pointer_type subscription_t in
+
   ignore(L.struct_set_body obv_t [|
-    void_ptr_t;   (* pointer to current value *)
-    void_ptr_t;   (* pointer to upstream value 1 *)
-    void_ptr_t;   (* pointer to upstream value 2 *)
-    void_ptr_t;   (* pointer to function *)
-    obv_pt;       (* pointer to observable *)
-    i32_t         (* observable type 1 if single, 2 if double *)
+    void_ptr_t;       (* pointer to current value *)
+    void_ptr_t;       (* pointer to upstream value 1 *)
+    void_ptr_t;       (* pointer to upstream value 2 *)
+    void_ptr_t;       (* pointer to function *)
+    subscription_pt;  (* pointer to subscription linked list *)
+    i32_t             (* observable type 1 if single, 2 if double *)
+  |] false);
+
+  ignore(L.struct_set_body subscription_t [|
+    subscription_pt;  (* pointer to next subscription *)
+    obv_pt            (* pointer to observable *)
   |] false);
 
   let printf_t : L.lltype =
@@ -123,6 +131,10 @@ let translate (globs) =
   let next_ftype = L.function_type void_t [| obv_pt |] in
   let next_function = L.define_function "onNext" next_ftype the_module in
   StringHash.add global_vars "onNext" next_function;
+  let subscribe_ftype = L.function_type void_t [| obv_pt; obv_pt |] in
+  let subscribe_function = L.define_function "subscribe" subscribe_ftype the_module in
+  StringHash.add global_vars "subscribe" subscribe_function;
+
 
 
   let lookup vars n = try StringHash.find vars n
@@ -402,8 +414,10 @@ let translate (globs) =
       ignore(L.build_store func_vp obs_func_vpp builder);
 
       (* 2 *)
-      let ups_child = L.build_struct_gep upstream 4 "__child" builder in
-      ignore(L.build_store obs ups_child builder);
+      L.build_call (lookup global_vars "subscribe") [| upstream; obs |] "" builder;
+
+      (* let ups_child = L.build_struct_gep upstream 4 "__child" builder in
+      ignore(L.build_store obs ups_child builder); *)
 
       let upstream_curr_vpp = L.build_struct_gep upstream 0 "__ups_curr_vpp" builder in
       let upstream_curr_vp = L.build_load upstream_curr_vpp "__ups_curr_vp" builder in
@@ -430,10 +444,13 @@ let translate (globs) =
       ignore(L.build_store func_vp obs_func_vpp builder);
 
       (* 2 *)
-      let ups_child1 = L.build_struct_gep upstream1 4 "__child" builder in
+      L.build_call (lookup global_vars "subscribe") [| upstream1; obs |] "" builder;
+      L.build_call (lookup global_vars "subscribe") [| upstream2; obs |] "" builder;
+
+      (* let ups_child1 = L.build_struct_gep upstream1 4 "__child" builder in
       let ups_child2 = L.build_struct_gep upstream2 4 "__child" builder in
       ignore(L.build_store obs ups_child1 builder);
-      ignore(L.build_store obs ups_child2 builder);
+      ignore(L.build_store obs ups_child2 builder); *)
 
       let upstream1_curr_vpp = L.build_struct_gep upstream1 0 "__ups1_curr_vpp" builder in
       let upstream1_curr_vp = L.build_load upstream1_curr_vpp "__ups1_curr_vp" builder in
@@ -530,13 +547,15 @@ let translate (globs) =
       ignore(L.build_store func_vp obs_func_vpp builder);
 
       (* 2 *)
-      let ups_child = L.build_struct_gep upstream 4 "__child" builder in
-      ignore(L.build_store obs ups_child builder);
+
+      (* let ups_child = L.build_struct_gep upstream 4 "__child" builder in
+      ignore(L.build_store obs ups_child builder); *)
 
       let upstream_curr_vpp = L.build_struct_gep upstream 0 "__ups_curr_vpp" builder in
       let upstream_curr_vp = L.build_load upstream_curr_vpp "__ups_curr_vp" builder in
       let obs_upv_vpp = L.build_struct_gep obs 1 "__dwn_upv_vpp" builder in
       L.build_store upstream_curr_vp obs_upv_vpp builder;
+      L.build_call (lookup global_vars "subscribe") [| upstream; obs |] "" builder;
 
 
       (*
@@ -564,14 +583,55 @@ let translate (globs) =
   let () = add_terminal global_builder (L.build_ret (L.const_int i32_t 0)) in
 
 
+  let define_subscribe =
+    (*
+    void subscribe(observable* upstream, observable* downstream) {
+
+      subscription *new = (subscription^) malloc(sizeof(subscription));
+      new->__obs = downstream;
+      new->__next = upstream->subscription;
+
+      upstream->subscription = new
+    }
+    *)
+
+    let subscribe_function = StringHash.find global_vars "subscribe" in
+    let builder = L.builder_at_end context (L.entry_block subscribe_function) in
+    L.set_value_name "upstream" (L.params subscribe_function).(0);
+    L.set_value_name "downstream" (L.params subscribe_function).(1);
+    let up_local   = L.build_alloca obv_pt "upstream" builder in
+    let down_local = L.build_alloca obv_pt "downstream" builder in
+    L.build_store (L.params subscribe_function).(0) up_local builder;
+    L.build_store (L.params subscribe_function).(1) down_local builder;
+    let upstream = L.build_load up_local "__ups" builder in      (* upstream   : observable*  *)
+    let downstream = L.build_load down_local "__dws" builder in  (* downstream : observable*  *)
+
+
+    let next' = L.build_struct_gep upstream 4 "__subscription_pp" builder in  (* next' : subscription**  &(upstream->sub) *)
+    let next  = L.build_load next' "__subscription_p" builder in              (* next  : subscription*   upstream->sub    *)
+
+
+    let new_sub = L.build_malloc subscription_t "new" builder in     (* new_sub : subscription*                    *)
+    let n_next' = L.build_struct_gep new_sub 0 "__next" builder in   (* n_next' : subscription**  &(new_sub->next) *)
+    let n_obs'  = L.build_struct_gep new_sub 1 "__obs" builder in    (* n_obs'  : observable**    &(new_sub->obs)  *)
+    L.build_store next n_next' builder;
+    L.build_store downstream n_obs' builder; 
+
+    L.build_store new_sub next' builder;
+    L.build_ret_void builder;
+  in
+
+
   let define_next = 
     (*
     void onNext(observable* obs) {
 
-      if (obs->__downstreamObservable != NULL) {
-        observable* d = obs->__downstreamObservable;
+      subscription* sub = obs->__subscription;
+      while (sub != NULL) {
+        observable* d = sub->__obs;
         d->__curr = d->__func(d->__upstreamValue);
         onNext(d);
+        sub = sub->__next;
         return;
       }
       return;
@@ -586,8 +646,11 @@ let translate (globs) =
     let upstream = L.build_load up_local "__ups" builder in
 
 
-    let d' = L.build_struct_gep upstream 4 "__d_ref" builder in  (* d' : observable**  *)
-    let d = L.build_load d' "__d" builder in            (* d  : observable*   *)
+    let sub' = L.build_struct_gep upstream 4 "sub_pp" builder in  (* sub' : subscription**  *)
+    let sub = L.build_load sub' "sub_p" builder in                (* sub  : subscription*   *)
+
+    let d' = L.build_struct_gep sub 1 "__d_ref" builder in    (* d' : observable**  *)
+    let d = L.build_load d' "__d" builder in                  (* d  : observable*   *)
 
     (* observable* d = obs->__downstreamObservable; *)
     let then_bb = L.append_block context "then" next_function in
@@ -597,7 +660,7 @@ let translate (globs) =
     let d_class  = L.build_load d_class' "__d_class" then_builder in     (* d_class  : i32   *)
 
     (* obs->__downstreamObservable != NULL *)
-    let cond = L.build_icmp L.Icmp.Ne (L.const_pointer_null obv_pt) d "tmp" builder in
+    let cond = L.build_icmp L.Icmp.Ne (L.const_pointer_null subscription_pt) sub "tmp" builder in
     let cond2 = L.build_icmp L.Icmp.Eq (L.const_int i32_t 1) d_class "tmp2" then_builder in
 
 
