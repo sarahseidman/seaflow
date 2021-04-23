@@ -242,6 +242,7 @@ let translate (globs) =
       let same = t1 = t2 in
       let same_int_or_char = (same && (t1 = i32_t || t1 = i8_t))
       and same_float = (same && t1 = float_t)
+      and not_same = (not(same) && (t1 = i8_t || t1 = i32_t || t1 = float_t) && (t2 = i8_t || t2 = i32_t || t2 = float_t))
       and float_left = (t1 = float_t && t2 = i32_t)
       and float_right = (t1 = i32_t && t2 = float_t) in
       (match op with
@@ -269,27 +270,16 @@ let translate (globs) =
       | A.Greater when same_float -> L.build_fcmp L.Fcmp.Ogt e1' e2' "tmp" builder
       | A.Geq when same_float     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
 
-      | A.Add when float_left     -> L.build_fadd e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Sub when float_left     -> L.build_fsub e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Mult when float_left    -> L.build_fmul e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Div when float_left     -> L.build_fdiv e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Equal when float_left   -> L.build_fcmp L.Fcmp.Oeq e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Neq when float_left     -> L.build_fcmp L.Fcmp.One e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Less when float_left    -> L.build_fcmp L.Fcmp.Olt e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Leq when float_left     -> L.build_fcmp L.Fcmp.Ole e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Greater when float_left -> L.build_fcmp L.Fcmp.Ogt e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-      | A.Geq when float_left     -> L.build_fcmp L.Fcmp.Oge e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
-
-      | A.Add when float_right     -> L.build_fadd (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Sub when float_right     -> L.build_fsub (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Mult when float_right    -> L.build_fmul (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Div when float_right     -> L.build_fdiv (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Equal when float_right   -> L.build_fcmp L.Fcmp.Oeq (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Neq when float_right     -> L.build_fcmp L.Fcmp.One (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Less when float_right    -> L.build_fcmp L.Fcmp.Olt (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Leq when float_right     -> L.build_fcmp L.Fcmp.Ole (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Greater when float_right -> L.build_fcmp L.Fcmp.Ogt (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
-      | A.Geq when float_right     -> L.build_fcmp L.Fcmp.Oge (L.build_sitofp e1' float_t "tmp" builder) e2' "tmp" builder
+      | A.Add when not_same     -> L.build_fadd (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Sub when not_same     -> L.build_fsub (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Mult when not_same    -> L.build_fmul (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Div when not_same     -> L.build_fdiv (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Equal when not_same   -> L.build_fcmp L.Fcmp.Oeq (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Neq when not_same     -> L.build_fcmp L.Fcmp.One (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Less when not_same    -> L.build_fcmp L.Fcmp.Olt (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Leq when not_same     -> L.build_fcmp L.Fcmp.Ole (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Greater when not_same -> L.build_fcmp L.Fcmp.Ogt (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
+      | A.Geq when not_same     -> L.build_fcmp L.Fcmp.Oge (L.build_sitofp e1' float_t "tmp" builder) (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder
 
       | A.And | A.Or when (same_float || float_left || float_right) ->
           raise (Failure "internal error: semant should have rejected and/or on float")
