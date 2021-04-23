@@ -16,6 +16,7 @@ end)
 let global_vars = StringHash.create 10
 (* let function_decls = StringHash.create 10 *)
 let struct_defs = StringHash.create 10
+let struct_by_body = StringHash.create 10
 
 (* Semantic checking of the AST. Returns an SAST if successful,
    throws an exception if something is wrong.
@@ -121,6 +122,10 @@ let check (globs) =
         | Some (t2, _) -> t2 
         | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
       in (element_type, SRef(str_name, string_of_typ t', s))
+    | Sliteral(expr_list) -> 
+      let e' = List.map (expr vars) expr_list in
+      let ty = List.map fst e' in
+      (Sbody(ty), SSliteral(e'))
     | Arr_Ref(s, e) ->
       (* basically just check that the array exists and that expr is an int *)
       let ty = typ_of_arr (type_of_identifier vars s) in
@@ -182,12 +187,23 @@ let check (globs) =
           | _ ->  raise (Failure ("must be Func type"))
         in
 
+        let is_struct ty = (match ty with
+          Struct(x) -> true
+          | _ -> false
+        ) in
+
+        let find_body s = StringHash.find struct_by_body (string_of_typ s) in
+
         let param_length = List.length formals in
         if List.length args != param_length then
           raise (Failure ("expecting " ^ string_of_int param_length ^ 
                             " arguments in " ^ string_of_expr call))
         else let check_call ft e = 
+          (* structs are a special case - we compare struct body to struct literal *)
+          let ft_is_struct = (is_struct ft) in
+          let ft = if ft_is_struct then (find_body ft) else ft in
           let (et, e') = expr vars e in 
+          let et = if ft_is_struct then find_body et else et in
           let err = "illegal argument: found "  ^ string_of_typ et ^
               " expected "  ^ string_of_typ ft ^  " in "  ^ string_of_expr e
           in (check_assign ft et err, e')
@@ -213,32 +229,11 @@ let check (globs) =
       (* if t = func.typ then SReturn (t, e') 
       else raise (Failure ("return gives  ^ string_of_typ t ^  expected  ^
                             string_of_typ func.typ ^  in  ^ string_of_expr e")) *)
-    | Str_Decl(t, s, expr_list) ->
-      StringHash.add vars s t ;
-      let check_sdecl (t, expr_list) =
-        let l = try StringHash.find struct_defs (string_of_typ t)
-          with Not_found -> raise (Failure ("undeclared struct " ^ string_of_typ t))
-        in if List.length l == List.length expr_list then () else raise (Failure ("incorrect arguments number for " ^ string_of_typ t))
-      in
-      let _ = check_sdecl(t, expr_list) in
-      let expr_list' = List.map (expr vars) expr_list
-      in SStr_Decl(t, s, expr_list')
     | Str_Def(s, b_list) ->
-      let _ = StringHash.add struct_defs ("struct " ^ s) b_list 
-      in SStr_Def(s, b_list)
-    (* | Arr_Decl(ty, str, expr_list) ->
-      (* are all elements of expr_list the same type?
-        is this type also the type of ty?
-        and then add to global_vars? *)
-        (* make sure each expression is valid *)
-        let ty' = typ_of_arr ty in
-        let expr_list' = List.map (expr vars) expr_list in
-        (* now we can compare their types *)
-        let compare x (y,_) =
-          if x = y then () else raise (Failure("array declaration: type mismatch " ^ string_of_typ x ^ " != " ^ string_of_typ y))
-        in let _ = List.map (compare ty') expr_list' in
-        StringHash.add vars str ty ;
-        SArr_Decl(ty, str, expr_list') *)
+      let tlist = List.map fst b_list in
+      let name = ("struct " ^ s) in
+      StringHash.add struct_defs name b_list ; StringHash.add struct_by_body name (Sbody(tlist)) ;
+      SStr_Def(s, b_list)
     | Block sl -> 
       let rec check_stmt_list v = function
           [Return _ as s] -> [check_stmt v s]

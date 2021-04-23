@@ -18,6 +18,7 @@ and sx =
   | SArr_Ref of string * sexpr
   | SIf of sexpr * sexpr * sexpr
   | SFuncExpr of bind list * typ * sstmt list
+  | SSliteral of sexpr list
   | SLen of string
   | SNoexpr
   | SVoid
@@ -31,7 +32,6 @@ sstmt =
   | SReturn of sexpr
   | SPrint of sexpr
   | SDecl of typ * string * sexpr
-  | SStr_Decl of typ * string * sexpr list
   | SStr_Def of string * bind list
 
 (* 
@@ -106,6 +106,7 @@ let rec string_of_sexpr (t, e) =
   | SFuncExpr(bind_list, _, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
+  | SSliteral(e_list) -> "(sliteral: { " ^ String.concat ", " (List.map string_of_sexpr e_list) ^ " })"
   | SLen(s) -> s ^ ".length"
   | SVoid -> ""
   | SNoexpr -> ""
@@ -120,8 +121,6 @@ string_of_sstmt = function
   | SReturn(sexpr) -> "return " ^ string_of_sexpr sexpr ^ ";\n";
   | SPrint(expr) -> "print(" ^ string_of_sexpr expr ^ ");\n"
   | SDecl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_sexpr expr ^ ";\n"
-  | SStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
-      String.concat ", " (List.map string_of_sexpr expr_list) ^ "};\n"
   | SStr_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 

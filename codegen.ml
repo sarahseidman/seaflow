@@ -60,7 +60,9 @@ let translate (globs) =
     | A.Arr(x) -> L.pointer_type (ltype_of_typ x)
     | A.Struct(str) -> let (ty, _, _) = try (StringHash.find global_structs ("struct " ^ str))
         with Not_found -> raise (Failure "Struct type mismatch")
-      in ty
+      in 
+      let t = struct_t (Array.of_list (List.map ltype_of_typ tlist)) in
+      L.pointer_type t
     | A.Func(param_types, rtype) ->
       let param_ltypes = (List.map ltype_of_typ param_types) in
       let rltype = ltype_of_typ rtype in
@@ -97,10 +99,7 @@ let translate (globs) =
       | A.Char  -> L.const_int i8_t 0
       | A.Arr(ty) -> L.const_null (L.type_of v)
       | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
-      | A.Struct(x) ->
-        let (ty, tlist, flist) = StringHash.find global_structs ("struct " ^ x) in
-        let empty_vars = List.map init tlist in
-        L.const_struct context (Array.of_list empty_vars)
+      | A.Struct(x) as s -> L.const_pointer_null (ltype_of_typ s)
     in
     let store = L.define_global s (init t) the_module in
     L.build_store v store builder ; StringHash.add global_vars s store
@@ -150,15 +149,29 @@ let translate (globs) =
       in
       add_store 0 (L.const_int i32_t num) ; List.fold_left add_store 1 elems ; ptr
     | SRef(str_name, type_of_struct, fieldname) ->
-      let loc = lookup vars str_name in
+      let loc = L.build_load (lookup vars str_name) str_name builder in
       let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
       let rec find x lst =
         match lst with
-        | [] -> raise (Failure "Not Found")
+        | [] -> raise (Failure "Struct name not found")
         | h :: t -> if x = h then 0 else 1 + find x t
       in
       let idx = find fieldname flist in
       let p = L.build_struct_gep loc idx "tmp" builder in
+      let ty' = ltype_of_typ (List.nth tlist idx) in
+      let ptr = L.build_pointercast p (L.pointer_type ty') "ptr" builder in
+      L.build_load ptr "z" builder
+    | SSliteral(expr_list) ->
+        let elems = List.map (expr vars builder) expr_list in
+        let ty = struct_t (Array.of_list (List.map L.type_of elems)) in
+        let ptr = L.build_alloca ty "struct" builder in
+        let add_store i e = 
+          let eptr = L.build_struct_gep ptr i "e" builder in
+          let cptr = L.build_pointercast eptr (L.pointer_type (L.type_of e)) "p" builder in
+          L.build_store e cptr builder; i+1
+        in
+        List.fold_left add_store 0 elems ;
+        L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
       L.build_load p "z" builder
     | SArr_Ref(s, e) ->
       (* how to check for out of bounds index? *)
@@ -321,7 +334,6 @@ let translate (globs) =
       StringHash.add local_vars n local
     in
 
-
     let _ = List.iter2 add_formal params
       (Array.to_list (L.params the_function))
     in
@@ -331,17 +343,6 @@ let translate (globs) =
         SExpr e -> ignore(expr local_vars builder e)
       | SDecl(t, s, e) -> let e' = expr local_vars builder e in
           ignore(add_formal (t, s) e')
-      | SStr_Decl(ty, str, expr_list) ->
-        let expr_list' = List.map (expr local_vars builder) expr_list in
-        let init = L.const_struct context (Array.of_list expr_list') in
-        print_endline (L.string_of_lltype (L.type_of init)) ;
-        let dest = L.build_alloca (ltype_of_typ ty) str local_builder in
-        print_endline "after alloc";
-        let store = L.build_store init dest local_builder in
-        print_endline "after store";
-
-        ignore(StringHash.add local_vars str store)
-
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
@@ -359,6 +360,7 @@ let translate (globs) =
           | t -> L.build_ret (L.const_int (ltype_of_typ t) 0));
     the_function
   in
+
 
   let make_observable (_, e') (cls: observable_class) builder =
 
@@ -452,7 +454,6 @@ let translate (globs) =
     | SOUnop(op, oe) -> raise (Failure ("Not Implemented 2020"))
     | _ -> raise (Failure ("Not Implemented 2020"))
   in
-
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
     | SDecl(t, s, e) -> let e' = expr global_vars builder e in
@@ -462,11 +463,6 @@ let translate (globs) =
         let flist = List.map snd b_list in
         let ty = struct_t (list_to_lltype tlist)  in
         StringHash.add global_structs ("struct " ^ s) (ty, tlist, flist) ; builder
-    | SStr_Decl(ty, str, expr_list) ->
-        let expr_list' = List.map (expr global_vars builder) expr_list in
-        let init = L.const_struct context (Array.of_list expr_list') in
-        let store = L.define_global str init the_module in
-        StringHash.add global_vars str store ; builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
   in

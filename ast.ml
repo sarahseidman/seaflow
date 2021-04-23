@@ -5,10 +5,11 @@ type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
 
 type uop = Neg
 
-type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Func of typ list * typ
+type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Sbody of typ list | Func of typ list * typ
   | Observable of typ
 
 (* type otyp = Observable of typ *)
+
 
 type bind = typ * string
 
@@ -26,6 +27,7 @@ type expr =
   | Arr_Ref of string * expr
   | If of expr * expr * expr
   | FuncExpr of bind list * stmt list
+  | Sliteral of expr list
   | Len of string
   | Noexpr
   | Void
@@ -37,7 +39,6 @@ and stmt =
   | Return of expr
   | Print of expr
   | Decl of typ * string * expr
-  | Str_Decl of typ * string * expr list
   | Str_Def of string * bind list
 
 
@@ -97,6 +98,7 @@ let rec string_of_typ = function
   | Char -> "char"
   | Arr(typ) -> string_of_typ typ ^ "[]"
   | Struct(str) -> "struct " ^ str
+  | Sbody(tlist) -> "{ " ^ String.concat ", " (List.map string_of_typ tlist) ^ " }"
   | Func(typ_list, typ) -> "(" ^
       String.concat ", " (List.map string_of_typ typ_list)
       ^ ") -> (" ^ string_of_typ typ ^ ")"
@@ -144,6 +146,7 @@ let rec string_of_expr = function
   | FuncExpr(bind_list, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
+  | Sliteral(e_list) -> "{ " ^ String.concat ", " (List.map string_of_expr e_list) ^ " }"
   | Len(s) -> s ^ ".length"
   | Noexpr -> ""
   | Void -> ""
@@ -157,8 +160,6 @@ string_of_stmt = function
   | Return(expr) -> "return " ^ string_of_expr expr ^ ";\n";
   | Print(expr) -> "print(" ^ string_of_expr expr ^ ");\n"
   | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
-  | Str_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
-      String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 
