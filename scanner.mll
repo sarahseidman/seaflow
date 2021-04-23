@@ -43,6 +43,9 @@ rule token = parse
 | "char"   { CHAR }
 | "void"   { VOID }
 | "struct" { STRUCT }
+| "length" { LEN }
+| "map"    { MAP }
+| "combine" { COMBINE }
 | charlit as lxm { CHLIT(lxm.[1])}
 | digits as lxm { LITERAL(int_of_string lxm) }
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
