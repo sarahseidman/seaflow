@@ -261,9 +261,6 @@ let check (globs) =
       | Char when same2 -> Char
       | Arr(x) when same2 -> Arr(x)
       | _ -> raise (Failure ("illegal if; types must match for lval and rval")) in
-      let ctyp = match tc with
-        Int -> Int
-      | _   -> raise (Failure ("illegal if; condition type must be Int")) in
       StringHash.add vars var ltyp ;
       SIf(ltyp, var, (tc, c'), (t1, e1'), (t2, e2'))
 
