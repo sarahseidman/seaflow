@@ -99,8 +99,14 @@ let check (globs) =
       Literal  l -> (Int, SLiteral l)
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
+    | Aliteral a -> 
+      let (ty, _) = expr vars (List.hd a) in
+      let expr_list = List.map (expr vars) a in
+      let compare x (y,_) =
+        if x = y then () else raise (Failure("array literal: type mismatch " ^ string_of_typ x ^ " != " ^ string_of_typ y))
+      in let _ = List.map (compare ty) expr_list in
+      (Arr(ty), SAliteral (ty, expr_list))
     | Id s       -> (type_of_identifier vars s, SId s)
-    (* | Sid s      -> (type_of_identifier vars s, SSid s) *)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
       let str_name = match e' with
@@ -115,6 +121,18 @@ let check (globs) =
         | Some (t2, _) -> t2 
         | None -> raise (Failure ("field " ^ s ^ " is not part of this struct"))
       in (element_type, SRef(str_name, string_of_typ t', s))
+    | Arr_Ref(s, e) ->
+      (* basically just check that the array exists and that expr is an int *)
+      let ty = typ_of_arr (type_of_identifier vars s) in
+      let (idx_ty, e') = expr vars e in
+      let _ = if idx_ty = Int then () 
+          else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
+      (ty, SArr_Ref(s, (idx_ty, e')))
+    | Len(s) ->
+      let ty = type_of_identifier vars s in 
+      let _ = try typ_of_arr ty
+          with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
+      (Int, SLen(s))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
@@ -126,6 +144,7 @@ let check (globs) =
           Int when same -> Int
         | Float when same -> Float
         | Char when same -> Char
+        | Arr(x) when same -> Arr(x)
         | _ -> raise (Failure ("illegal if; types must match"))
         in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
     | Binop(e1, op, e2) as e -> 
@@ -165,12 +184,12 @@ let check (globs) =
 
         let param_length = List.length formals in
         if List.length args != param_length then
-          raise (Failure ("expecting ^ string_of_int param_length ^ 
-                            arguments in  ^ string_of_expr call"))
+          raise (Failure ("expecting " ^ string_of_int param_length ^ 
+                            " arguments in " ^ string_of_expr call))
         else let check_call ft e = 
           let (et, e') = expr vars e in 
-          let err = "illegal argument found " ^ string_of_typ et ^
-              " expected "  ^ string_of_typ ft ^ " in " ^ string_of_expr e
+          let err = "illegal argument: found "  ^ string_of_typ et ^
+              " expected "  ^ string_of_typ ft ^  " in "  ^ string_of_expr e
           in (check_assign ft et err, e')
         in 
         let args' = List.map2 check_call formals args in
@@ -207,6 +226,19 @@ let check (globs) =
     | Str_Def(s, b_list) ->
       let _ = StringHash.add struct_defs ("struct " ^ s) b_list 
       in SStr_Def(s, b_list)
+    (* | Arr_Decl(ty, str, expr_list) ->
+      (* are all elements of expr_list the same type?
+        is this type also the type of ty?
+        and then add to global_vars? *)
+        (* make sure each expression is valid *)
+        let ty' = typ_of_arr ty in
+        let expr_list' = List.map (expr vars) expr_list in
+        (* now we can compare their types *)
+        let compare x (y,_) =
+          if x = y then () else raise (Failure("array declaration: type mismatch " ^ string_of_typ x ^ " != " ^ string_of_typ y))
+        in let _ = List.map (compare ty') expr_list' in
+        StringHash.add vars str ty ;
+        SArr_Decl(ty, str, expr_list') *)
     | Block sl -> 
       let rec check_stmt_list v = function
           [Return _ as s] -> [check_stmt v s]

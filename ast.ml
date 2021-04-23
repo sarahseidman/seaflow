@@ -16,6 +16,7 @@ type expr =
     Literal of int
   | Fliteral of string
   | Chliteral of char
+  | Aliteral of expr list
   | Id of string
   | Sid of string
   | Binop of expr * op * expr
@@ -25,6 +26,7 @@ type expr =
   | Arr_Ref of string * expr
   | If of expr * expr * expr
   | FuncExpr of bind list * stmt list
+  | Len of string
   | Noexpr
   | Void
 
@@ -35,7 +37,6 @@ and stmt =
   | Return of expr
   | Print of expr
   | Decl of typ * string * expr
-  | Arr_Decl of typ * string * expr list
   | Str_Decl of typ * string * expr list
   | Str_Def of string * bind list
 
@@ -101,6 +102,9 @@ let rec string_of_typ = function
       ^ ") -> (" ^ string_of_typ typ ^ ")"
   | Observable(typ) -> string_of_typ typ ^ "$"
 
+let typ_of_arr = function
+  | Arr(typ) -> typ
+
 let string_of_bind (t, id) = string_of_typ t ^ " " ^ id ^ ";"
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 
@@ -125,6 +129,7 @@ let rec string_of_expr = function
     Literal(l) -> string_of_int l
   | Fliteral(l) -> l
   | Chliteral(l) -> "'" ^ String.make 1 l ^ "'"
+  | Aliteral(l) -> "[" ^ String.concat "," (List.map string_of_expr l) ^ "]"
   | Id(s) -> s
   | Sid(s) -> s
   | Binop(e1, o, e2) ->
@@ -139,6 +144,7 @@ let rec string_of_expr = function
   | FuncExpr(bind_list, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
+  | Len(s) -> s ^ ".length"
   | Noexpr -> ""
   | Void -> ""
 
@@ -151,8 +157,6 @@ string_of_stmt = function
   | Return(expr) -> "return " ^ string_of_expr expr ^ ";\n";
   | Print(expr) -> "print(" ^ string_of_expr expr ^ ");\n"
   | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
-  | Arr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^ 
-      String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
   | Str_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
       String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 

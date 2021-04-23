@@ -7,7 +7,7 @@ open Ast
 %token MAP COMBINE
 %token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN ARROW DOT
 %token EQ NEQ LT LEQ GT GEQ AND OR
-%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL
+%token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL LEN
 %token <int> LITERAL
 %token <string> ID FLIT OBS SID
 %token <char> CHLIT
@@ -111,7 +111,6 @@ stmt:
 // vdecls
   | typ ID ASSIGN expr SEMI                  { Decl($1, $2, $4) }
   | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Decl($1, $2, List.rev $5) }
-  | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Decl($1, $2, List.rev $5) }
   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Def($2, List.rev $4) }
 
 
@@ -140,6 +139,7 @@ expr:
   | CHLIT            { Chliteral($1)          }
   | ID               { Id($1)                 }
   | SID              { Sid($1)                }
+  | ID DOT LEN       { Len($1)                }
   | expr DOT ID      { Ref($1, $3)            }
   | expr PLUS   expr { Binop($1, Add,   $3)   }
   | expr DIVIDE expr { Binop($1, Div,   $3)   }
@@ -153,6 +153,7 @@ expr:
   | expr GEQ    expr { Binop($1, Geq,   $3)   }
   | expr AND    expr { Binop($1, And,   $3)   }
   | expr OR     expr { Binop($1, Or,    $3)   }
+  | LBRAKT args_list RBRAKT { Aliteral(List.rev $2)         }
 
   | MINUS expr       { Unop(Neg, $2)          }
   | ID LBRAKT expr RBRAKT                     { Arr_Ref($1, $3)  }

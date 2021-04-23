@@ -57,6 +57,7 @@ let translate (globs) =
     | A.Char  -> i8_t
     | A.Float -> float_t
     | A.Void  -> void_t
+    | A.Arr(x) -> L.pointer_type (ltype_of_typ x)
     | A.Struct(str) -> let (ty, _, _) = try (StringHash.find global_structs ("struct " ^ str))
         with Not_found -> raise (Failure "Struct type mismatch")
       in ty
@@ -94,6 +95,7 @@ let translate (globs) =
         A.Float -> L.const_float float_t 0.0
       | A.Int   -> L.const_int i32_t 0
       | A.Char  -> L.const_int i8_t 0
+      | A.Arr(ty) -> L.const_null (L.type_of v)
       | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
       | A.Struct(x) ->
         let (ty, tlist, flist) = StringHash.find global_structs ("struct " ^ x) in
@@ -101,7 +103,6 @@ let translate (globs) =
         L.const_struct context (Array.of_list empty_vars)
     in
     let store = L.define_global s (init t) the_module in
-    (* let () = printf "function name= %s wo\n%!" s in *)
     L.build_store v store builder ; StringHash.add global_vars s store
   in
 
@@ -136,10 +137,21 @@ let translate (globs) =
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
+    | SAliteral (ty, a) ->
+      let elems = List.map (expr vars builder) a in
+      let arr_t = ltype_of_typ ty in
+      let num = List.length elems in
+      let ptr = L.build_array_alloca arr_t (L.const_int i32_t num) "a" builder in
+      let add_store i e = 
+        let idx = L.const_int i32_t i in
+        let eptr = L.build_gep ptr [|idx|] "e" builder in
+        let cptr = L.build_pointercast eptr (L.pointer_type (L.type_of e)) "p" builder in
+        L.build_store e cptr builder; i+1
+      in
+      add_store 0 (L.const_int i32_t num) ; List.fold_left add_store 1 elems ; ptr
     | SRef(str_name, type_of_struct, fieldname) ->
       let loc = lookup vars str_name in
       let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
-      (* https://www.howtobuildsoftware.com/index.php/how-do/bRlD/list-find-ocaml-ml-memory-consumption-finding-an-item-in-a-list-and-returning-its-index-ocaml *)
       let rec find x lst =
         match lst with
         | [] -> raise (Failure "Not Found")
@@ -148,7 +160,21 @@ let translate (globs) =
       let idx = find fieldname flist in
       let p = L.build_struct_gep loc idx "tmp" builder in
       L.build_load p "z" builder
-
+    | SArr_Ref(s, e) ->
+      (* how to check for out of bounds index? *)
+      let arr_var = lookup vars s in
+      let arr_var' = L.build_load arr_var "a" builder in
+      let idx = expr vars builder e in 
+      let sum = L.build_add idx (L.const_int i32_t 1) "sum" builder in
+      let ptr = L.build_load (L.build_gep arr_var' [| sum |] "" builder) "a" builder 
+      in ptr
+    | SLen(s) ->
+      let arr = lookup vars s in
+      let arr' = L.build_load arr "a" builder in
+      let idx = L.const_int i32_t 0 in 
+      let len = L.build_gep arr' [| idx |] "" builder in
+      let ptr = L.build_pointercast len (L.pointer_type (L.type_of idx)) "lptr" builder in
+      L.build_load ptr "a" builder
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -283,6 +309,13 @@ let translate (globs) =
       StringHash.add local_vars n local
     in
 
+    let add_local_arr n p ltyp = 
+      L.set_value_name n p ; 
+      let local = L.build_alloca ltyp n local_builder in
+      ignore (L.build_store p local local_builder);
+      StringHash.add local_vars n local
+    in
+
     let add_local (t, n) =
       let local = L.build_alloca (ltype_of_typ t) n local_builder in
       StringHash.add local_vars n local
@@ -298,7 +331,6 @@ let translate (globs) =
         SExpr e -> ignore(expr local_vars builder e)
       | SDecl(t, s, e) -> let e' = expr local_vars builder e in
           ignore(add_formal (t, s) e')
-          (* ignore(add_local (t, s, e', builder)) *)
       | SStr_Decl(ty, str, expr_list) ->
         let expr_list' = List.map (expr local_vars builder) expr_list in
         let init = L.const_struct context (Array.of_list expr_list') in
@@ -309,6 +341,7 @@ let translate (globs) =
         print_endline "after store";
 
         ignore(StringHash.add local_vars str store)
+
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
@@ -322,46 +355,10 @@ let translate (globs) =
     add_terminal local_builder (match rt with
             A.Void -> L.build_ret_void
           | A.Float -> L.build_ret (L.const_float float_t 0.0)
+          (* | A.Arr(t) -> L.build_ret (L.const_pointer_null (ltype_of_typ t)) *)
           | t -> L.build_ret (L.const_int (ltype_of_typ t) 0));
     the_function
   in
-
-
-    (* let local_vars =
-      let add_formal m (t, n) p =
-        L.set_value_name n p;
-        let local = L.build_alloca (ltype_of_typ t) n builder in
-        ignore (L.build_store p local builder);
-        StringMap.add n local m
-
-      (* Allocate space for any locally declared variables and add the
-       * resulting registers to our map *)
-      and add_local m (t, n) =
-        let local_var = L.build_alloca (ltype_of_typ t) n builder
-        in StringMap.add n local_var m
-      in
-
-      let formals = List.fold_left2 add_formal StringMap.empty fdecl.sformals
-          (Array.to_list (L.params the_function)) in
-      List.fold_left add_local formals fdecl.slocals
-    in *)
-
-
-
-  (* let build_global_func fdecl =
-    function_decl fdecl *)
-
-
-  (* SFdecl = {
-    styp : typ;
-    sfname : string;
-    sformals : bind list;
-    (* locals : bind list; *)
-    sbody : sstmt list;
-  } *)
-
-
-
 
   let make_observable (_, e') (cls: observable_class) builder =
 
@@ -456,9 +453,6 @@ let translate (globs) =
     | _ -> raise (Failure ("Not Implemented 2020"))
   in
 
-
-
-
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
     | SDecl(t, s, e) -> let e' = expr global_vars builder e in
@@ -470,19 +464,8 @@ let translate (globs) =
         StringHash.add global_structs ("struct " ^ s) (ty, tlist, flist) ; builder
     | SStr_Decl(ty, str, expr_list) ->
         let expr_list' = List.map (expr global_vars builder) expr_list in
-        (* let namedty = try fst (StringHash.find global_structs (A.string_of_typ ty))
-            with Not_found -> raise (Failure "Struct not found")
-        in *)
         let init = L.const_struct context (Array.of_list expr_list') in
         let store = L.define_global str init the_module in
-
-        (* let store = L.build_alloca namedty str builder in  *)
-        (* let alloc = L.build_alloca namedty str builder in *)
-        (* need an llvalue that is the 2 ints *)
-        (* L.struct_set_body namedty expr_list' ; *)
-        (* L.const_insertvalue store (L.const_int i32_t 3) 0 ; *)
-
-        (* L.build_store init store builder ; *)
         StringHash.add global_vars str store ; builder
     | _ -> raise (Failure "Not Implemented 2002")
       (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
