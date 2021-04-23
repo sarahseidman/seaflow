@@ -337,23 +337,44 @@ let translate (globs) =
     let _ = List.iter2 add_formal params
       (Array.to_list (L.params the_function))
     in
-
-
-    let build_local_stmt builder = function
-        SExpr e -> ignore(expr local_vars builder e)
+    
+    let rec build_local_stmt builder = function
+        SExpr e -> ignore(expr local_vars builder e); builder
+      | SBlock(stmt_list) -> List.fold_left build_local_stmt builder stmt_list
       | SDecl(t, s, e) -> let e' = expr local_vars builder e in
-          ignore(add_formal (t, s) e')
+          ignore(add_formal (t, s) e'); builder
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
                 (* Build return statement *)
-              | _ -> L.build_ret (expr local_vars builder e) builder )
+              | _ -> L.build_ret (expr local_vars builder e) builder ); builder
+      | SIf(ltyp, var, cond, then_stmt, else_stmt) ->
+        let local = L.build_alloca (ltype_of_typ ltyp) var builder in
+          let bool_val = expr local_vars builder cond in
+            let merge_bb = L.append_block context "merge" the_function in
+              let then_bb = L.append_block context "then" the_function in
+                let then_builder = L.builder_at_end context then_bb in
+                  let then_val = expr local_vars then_builder then_stmt in
+                    L.set_value_name var then_val;
+                    ignore(L.build_store then_val local then_builder);
+                    StringHash.add local_vars var local;
+                    L.build_br merge_bb then_builder;
+                    let else_bb = L.append_block context "else" the_function in
+                      let else_builder = L.builder_at_end context else_bb in
+                        let else_val = expr local_vars else_builder else_stmt in
+                          L.set_value_name var else_val;
+                          ignore(L.build_store else_val local else_builder);
+                          StringHash.add local_vars var local;
+                          L.build_br merge_bb else_builder;
+                          ignore(L.build_cond_br bool_val then_bb else_bb builder);
+                          L.builder_at_end context merge_bb
       | _ -> raise (Failure "Not Implemented 2005")
     in
 
-    List.iter (build_local_stmt local_builder) sstmts;
+    (* List.iter (build_local_stmt local_builder) sstmts; *)
+    let local_builder_out = build_local_stmt local_builder (SBlock sstmts) in
 
-    add_terminal local_builder (match rt with
+    add_terminal local_builder_out (match rt with
             A.Void -> L.build_ret_void
           | A.Float -> L.build_ret (L.const_float float_t 0.0)
           (* | A.Arr(t) -> L.build_ret (L.const_pointer_null (ltype_of_typ t)) *)
