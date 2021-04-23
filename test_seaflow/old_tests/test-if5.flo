@@ -1,0 +1,7 @@
+int foo() {
+  int a = if (1 == 0) 42 else if (1 == 0) 17 else 4;
+  printi(a);
+  return 0;
+}
+
+foo();

@@ -1,0 +1,20 @@
+int apple(int x) {
+    printi(x);
+    return x;
+}
+
+int add(int x, int y) {
+    return x + y;
+}
+
+
+int $a = 5;
+int $b = 10;
+
+int $c = $a * $b;
+
+subscribe(apple, $c);
+
+$a = 50;
+$a = 500;
+$b = 100;

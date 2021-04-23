@@ -1,0 +1,12 @@
+int[] foo() {
+    int[] a = [1, 2, 3, 5];
+    return a;
+}
+
+int[] b = foo();
+
+printi(b.length);
+printi(b[0]);
+printi(b[1]);
+printi(b[2]);
+printi(b[3]);

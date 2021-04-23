@@ -34,22 +34,36 @@ sstmt =
   | SStr_Decl of typ * string * sexpr list
   | SStr_Def of string * bind list
 
-
+(* 
 type sfunc_decl = {
     styp : typ;
     sfname : string;
     sformals : bind list;
     sbody : sstmt list;
   }
+ *)
 
+
+type soexpr = typ * sox
+and sox =
+    SOId of string
+  | SOBinop1 of soexpr * op * sexpr   (* For map operation     *)
+  | SOBinop2 of sexpr * op * soexpr
+  | SOBinop3 of soexpr * op * soexpr  (* For combine operation *)
+  | SOUnop of uop * soexpr
+  | SMap of sexpr * soexpr
+  | SCombine of sexpr * soexpr * soexpr
 
 type sobs_stmt = 
-    SObs of string 
-  | SOExpr of sexpr
+    SObs of typ * string 
+  | SOExpr of soexpr
   | SODecl of typ * string * sexpr
-  | SOAssign of string * sexpr
+  | SOODecl of typ * string * soexpr
+  | SOAssign of typ * string * sexpr
+  | SOOAssign of typ * string * soexpr
   | SOArr_Decl of typ * string * sexpr list
   | SOStr_Decl of typ * string * sexpr list
+  | SSubscribe of string * sexpr * soexpr
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }
@@ -63,7 +77,7 @@ type sobs_stmt =
 
 type sglob = 
     SStmt of sstmt
-  | SFdecl of sfunc_decl
+  (* | SFdecl of sfunc_decl *)
   | SObs_Stmt of sobs_stmt
 
 type sprogram = sglob list
@@ -89,7 +103,7 @@ let rec string_of_sexpr (t, e) =
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2
   | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
       ^ string_of_sexpr e3
-  | SFuncExpr(bind_list, t, stmt_list) -> "(" ^ 
+  | SFuncExpr(bind_list, _, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
   | SLen(s) -> s ^ ".length"
@@ -112,26 +126,46 @@ string_of_sstmt = function
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
 
 
+let rec string_of_soexpr (t, e) =
+  "(" ^ string_of_typ t ^ " : " ^ (match e with
+    SOId(s) -> s
+  | SOBinop1(e1, o, e2) ->
+    string_of_soexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_sexpr e2
+  | SOBinop2(e1, o, e2) ->
+    string_of_sexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_soexpr e2
+  | SOBinop3(e1, o, e2) ->
+    string_of_soexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_soexpr e2
+  | SOUnop(o, e) -> string_of_uop o ^ string_of_soexpr e
+  | SMap(e, oe) -> "map(" ^ string_of_sexpr e ^ ", " ^ string_of_soexpr oe ^ ")"
+  | SCombine(e, oe1, oe2) -> "combine(" ^ string_of_sexpr e ^ ", " ^
+      string_of_soexpr oe1 ^ ", " ^ string_of_soexpr oe2 ^ ")"
+
+  ) ^ ")"
+
 let string_of_sobs_stmt = function
-    SObs(s) -> "type? " ^ s ^ ";\n"
-  | SOExpr(e) -> string_of_sexpr e ^ ";\n"
+    SObs(t, s) -> string_of_typ t ^ " " ^ s ^ ";\n"
+  | SOExpr(e) -> string_of_soexpr e ^ ";\n"
   | SODecl(t, s, e) -> string_of_typ t ^ " " ^ s ^ " = " ^ string_of_sexpr e ^ ";\n"
-  | SOAssign(s, e) -> s ^ " = " ^ string_of_sexpr e ^ ";\n"
+  | SOODecl(t, s, e) -> string_of_typ t ^ " " ^ s ^ " = " ^ string_of_soexpr e ^ ";\n"
+  | SOAssign(_, s, e) -> s ^ " = " ^ string_of_sexpr e ^ ";\n"
+  | SOOAssign(_, s, e) -> s ^ " = " ^ string_of_soexpr e ^ ";\n"
   | SOArr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = [" ^
       String.concat ", " (List.map string_of_sexpr expr_list) ^ "];\n"
   | SOStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
       String.concat ", " (List.map string_of_sexpr expr_list) ^ "};\n" 
+  | SSubscribe(s, e, oe) ->
+      s ^ "(" ^ string_of_sexpr e ^ ", " ^ string_of_soexpr oe ^ ");\n"
       
-let string_of_sfdecl fdecl =
+(* let string_of_sfdecl fdecl =
   string_of_typ fdecl.styp ^ " " ^
   fdecl.sfname ^ "(" ^ String.concat ", " (List.map snd fdecl.sformals) ^
   ")\n{\n" ^
   String.concat "" (List.map string_of_sstmt fdecl.sbody) ^
-  "}\n"
+  "}\n" *)
 
 let sstr_of_glob = function
    SStmt(stmt) -> string_of_sstmt stmt
-  | SFdecl(func_decl) -> string_of_sfdecl func_decl
+  (* | SFdecl(func_decl) -> string_of_sfdecl func_decl *)
   | SObs_Stmt(obs_stmt) -> string_of_sobs_stmt obs_stmt
 
 let sstring_of_program (globs) = 

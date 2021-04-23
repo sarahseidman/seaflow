@@ -1,0 +1,25 @@
+void testFloatRight(int a, float b) {
+    printf(a + b);
+    printf(a - b);
+    printf(a * b);
+    printf(a / b);
+    printi(if(a == b) 1 else 0);
+    printi(if(a == a) 1 else 0);
+    printi(if(a != b) 1 else 0);
+    printi(if(a != a) 1 else 0);
+    printi(if(a > b) 1 else 0);
+    printi(if(a >= b) 1 else 0);
+    printi(if(a < b) 1 else 0);
+    printi(if(a <= b) 1 else 0);
+}
+
+void foo() {
+  float c = 42.0;
+  int d = 3;
+  int e = 42;
+
+  testFloatRight(d, c);
+  testFloatRight(e, c);
+}
+
+foo();
