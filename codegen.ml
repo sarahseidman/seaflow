@@ -58,7 +58,8 @@ let translate (globs) =
     | A.Float -> float_t
     | A.Void  -> void_t
     | A.Arr(x) -> L.pointer_type (ltype_of_typ x)
-    | A.Struct(str) -> let (ty, _, _) = try (StringHash.find global_structs ("struct " ^ str))
+    | A.Struct(str) -> 
+      let (ty, tlist, _) = try (StringHash.find global_structs ("struct " ^ str))
         with Not_found -> raise (Failure "Struct type mismatch")
       in 
       let t = struct_t (Array.of_list (List.map ltype_of_typ tlist)) in
@@ -172,7 +173,6 @@ let translate (globs) =
         in
         List.fold_left add_store 0 elems ;
         L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
-      L.build_load p "z" builder
     | SArr_Ref(s, e) ->
       (* how to check for out of bounds index? *)
       let arr_var = lookup vars s in
