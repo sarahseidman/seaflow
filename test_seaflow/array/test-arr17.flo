@@ -1,7 +1,0 @@
-int[] foo() {
-    int[] a = [1, 2, 3, 5];
-    return a;
-}
-
-printi(foo()[2]);
-

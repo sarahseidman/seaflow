@@ -9,7 +9,7 @@ open Ast
 %token EQ NEQ LT LEQ GT GEQ AND OR
 %token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL
 %token <int> LITERAL
-%token <string> ID FLIT OBS SID
+%token <string> ID FLIT OBS SID STRLIT
 %token <char> CHLIT
 %token EOF
 
@@ -136,6 +136,7 @@ expr:
   | NULL             { Void                    }
   | FLIT             { Fliteral($1)           }
   | CHLIT            { Chliteral($1)          }
+  | STRLIT           { Strliteral($1)         }
   | ID               { Id($1)                 }
   | SID              { Sid($1)                }
   | expr DOT ID      { Ref($1, $3)            }

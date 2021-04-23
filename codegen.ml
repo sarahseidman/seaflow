@@ -29,6 +29,8 @@ type observable_class = SingleObservable | DoubleObservable
 
 let global_vars : L.llvalue StringHash.t = StringHash.create 10
 let global_structs = StringHash.create 10
+(* must keep list of types to know what to cast to when doing array reference *)
+let arr_types = StringHash.create 10
 
 (* translate : Sast.program -> Llvm.module *)
 let translate (globs) =
@@ -57,7 +59,7 @@ let translate (globs) =
     | A.Char  -> i8_t
     | A.Float -> float_t
     | A.Void  -> void_t
-    | A.Arr(x) -> L.pointer_type (ltype_of_typ x)
+    | A.Arr(x) -> L.pointer_type void_ptr_t
     | A.Struct(str) -> 
       let (ty, tlist, _) = try (StringHash.find global_structs ("struct " ^ str))
         with Not_found -> raise (Failure "Struct type mismatch")
@@ -139,14 +141,17 @@ let translate (globs) =
     | SId s        -> L.build_load (lookup vars s) s builder
     | SAliteral (ty, a) ->
       let elems = List.map (expr vars builder) a in
-      let arr_t = ltype_of_typ ty in
+      let arr_t = void_ptr_t in
       let num = List.length elems in
-      let ptr = L.build_array_alloca arr_t (L.const_int i32_t num) "a" builder in
+      let ptr = L.build_array_alloca arr_t (L.const_int i32_t (num+1)) "a" builder in
       let add_store i e = 
         let idx = L.const_int i32_t i in
         let eptr = L.build_gep ptr [|idx|] "e" builder in
-        let cptr = L.build_pointercast eptr (L.pointer_type (L.type_of e)) "p" builder in
-        L.build_store e cptr builder; i+1
+        let cptr = L.build_pointercast eptr 
+            (L.pointer_type (L.pointer_type (L.type_of e))) "p" builder in
+        let ealloc = L.build_alloca (L.type_of e) "ealloc" builder in
+        L.build_store e ealloc builder ;
+        L.build_store ealloc cptr builder; i+1
       in
       add_store 0 (L.const_int i32_t num) ; List.fold_left add_store 1 elems ; ptr
     | SRef(str_name, type_of_struct, fieldname) ->
@@ -175,19 +180,25 @@ let translate (globs) =
         L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
     | SArr_Ref(s, e) ->
       (* how to check for out of bounds index? *)
+      let ty = ltype_of_typ (StringHash.find arr_types s) in
       let arr_var = lookup vars s in
       let arr_var' = L.build_load arr_var "a" builder in
       let idx = expr vars builder e in 
       let sum = L.build_add idx (L.const_int i32_t 1) "sum" builder in
-      let ptr = L.build_load (L.build_gep arr_var' [| sum |] "" builder) "a" builder 
-      in ptr
+      let vptr = L.build_gep arr_var' [| sum |] "" builder in
+      let v = L.build_load vptr "vptr" builder in
+      let iptr = L.build_pointercast v (L.pointer_type ty) "iptr" builder in
+      L.build_load iptr "a" builder 
     | SLen(s) ->
       let arr = lookup vars s in
       let arr' = L.build_load arr "a" builder in
       let idx = L.const_int i32_t 0 in 
       let len = L.build_gep arr' [| idx |] "" builder in
-      let ptr = L.build_pointercast len (L.pointer_type (L.type_of idx)) "lptr" builder in
-      L.build_load ptr "a" builder
+      let v = L.build_load len "vptr" builder in
+      let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
+      L.build_load iptr "a" builder
+      (* let ptr = L.build_pointercast len (L.pointer_type (L.type_of idx)) "lptr" builder in
+      L.build_load ptr "a" builder *)
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -319,7 +330,11 @@ let translate (globs) =
       L.set_value_name n p;
       let local = L.build_alloca (ltype_of_typ t) n local_builder in
       ignore (L.build_store p local local_builder);
-      StringHash.add local_vars n local
+      let a = match t with
+        | Arr(x) -> StringHash.add arr_types n x
+        | _ -> ()
+      in 
+      StringHash.add local_vars n local ;
     in
 
     let add_local_arr n p ltyp = 
@@ -457,6 +472,10 @@ let translate (globs) =
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
     | SDecl(t, s, e) -> let e' = expr global_vars builder e in
+        let a = match t with
+          | Arr(x) -> StringHash.add arr_types s x
+          | _ -> ()
+        in 
         let _ = add_global_var (t, s, e', builder) in builder
     | SStr_Def(s, b_list) ->
         let tlist = List.map fst b_list in

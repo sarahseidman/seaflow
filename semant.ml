@@ -100,6 +100,15 @@ let check (globs) =
       Literal  l -> (Int, SLiteral l)
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
+    | Strliteral s ->
+      let ty = Char in
+      let split =
+        let rec exp i l =
+          if i < 2 then l else exp (i - 1) (Chliteral(s.[i]) :: l) in
+        exp (String.length s - 3) []
+      in
+      let e = List.map (expr vars) split in
+      (Arr(ty), SAliteral(ty, e))
     | Aliteral a -> 
       let (ty, _) = expr vars (List.hd a) in
       let expr_list = List.map (expr vars) a in

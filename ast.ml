@@ -17,6 +17,7 @@ type expr =
     Literal of int
   | Fliteral of string
   | Chliteral of char
+  | Strliteral of string
   | Aliteral of expr list
   | Id of string
   | Sid of string
@@ -131,6 +132,7 @@ let rec string_of_expr = function
   | Fliteral(l) -> l
   | Chliteral(l) -> "'" ^ String.make 1 l ^ "'"
   | Aliteral(l) -> "[" ^ String.concat "," (List.map string_of_expr l) ^ "]"
+  | Strliteral(s) -> "\"" ^ s ^ "\""
   | Id(s) -> s
   | Sid(s) -> s
   | Binop(e1, o, e2) ->
