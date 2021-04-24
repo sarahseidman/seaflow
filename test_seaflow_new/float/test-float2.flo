@@ -1,0 +1,32 @@
+void testFloat(float a, float b) {
+    printf(a + b);
+    printf(a - b);
+    printf(a * b);
+    printf(a / b);
+    int c = if(a == b) 1 else 0;
+    printi(c);
+    int d = if(a == a) 1 else 0;
+    printi(d);
+    int e = if(a != b) 1 else 0;
+    printi(e);
+    int f = if(a != a) 1 else 0;
+    printi(f);
+    int g = if(a > b) 1 else 0;
+    printi(g);
+    int h = if(a >= b) 1 else 0;
+    printi(h);
+    int i = if(a < b) 1 else 0;
+    printi(i);
+    int j = if(a <= b) 1 else 0;
+    printi(j);
+}
+
+void foo() {
+  float c = 42.0;
+  float d = 3.14159;
+
+  testFloat(c, d);
+  testFloat(d, d);
+}
+
+foo();

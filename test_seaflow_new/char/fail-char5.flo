@@ -1,0 +1,6 @@
+char i = 'a';
+char j = 'b';
+
+int k = i || j;
+
+printi(k);

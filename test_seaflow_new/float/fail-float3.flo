@@ -1,0 +1,6 @@
+float i = 7.0;
+float j = 12.0;
+
+int k = i && j;
+
+printi(k);

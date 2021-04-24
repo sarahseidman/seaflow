@@ -1,0 +1,10 @@
+int add(int a, int b) {
+  return a + b;
+}
+
+void foo() {
+  float a = add(12, 7);
+  printf(a);
+}
+
+foo();
