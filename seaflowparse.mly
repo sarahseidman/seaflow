@@ -133,6 +133,7 @@ obs_stmt:
   | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl(Observable($1), $2, List.rev $5) }
 
   | ID LPAREN expr COMMA obs_expr RPAREN SEMI      { Subscribe($1, $3, $5) }
+  | ID LPAREN obs_expr RPAREN SEMI            { Complete($1, $3) }
 
 
 expr_opt:

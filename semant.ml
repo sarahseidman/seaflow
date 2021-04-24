@@ -510,6 +510,13 @@ let check (globs) =
         | _ -> raise (Failure ("map function type does not match"))
       in
       SSubscribe(s, (ft, e'), (ot, oe'))
+    | Complete(s, oe) ->
+      let (ot, oe') = oexpr vars oe in 
+      let it' = match ot with
+        | Observable x -> x
+        | _ as x -> raise (Failure ("second arguement of map must be an observable"))
+      in
+      SComplete(s, (ot, oe'))
     | _ -> raise (Failure ("Not Implemented 1000"))
   in
 

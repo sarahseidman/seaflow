@@ -64,6 +64,7 @@ type sobs_stmt =
   | SOArr_Decl of typ * string * sexpr list
   | SOStr_Decl of typ * string * sexpr list
   | SSubscribe of string * sexpr * soexpr
+  | SComplete of string * soexpr
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }
@@ -154,6 +155,8 @@ let string_of_sobs_stmt = function
       String.concat ", " (List.map string_of_sexpr expr_list) ^ "};\n" 
   | SSubscribe(s, e, oe) ->
       s ^ "(" ^ string_of_sexpr e ^ ", " ^ string_of_soexpr oe ^ ");\n"
+  | SComplete(s, oe) ->
+      s ^ "(" ^ string_of_soexpr oe ^ ");\n"
       
 (* let string_of_sfdecl fdecl =
   string_of_typ fdecl.styp ^ " " ^
