@@ -91,7 +91,9 @@ let check (globs) =
     with Not_found -> raise (Failure ("undeclared identifier " ^ s))
   in
 
-  let find_body s = StringHash.find struct_by_body (string_of_typ s) in
+  let find_body s = try StringHash.find struct_by_body (string_of_typ s)
+              with Not_found -> raise (Failure ("struct type not found: " ^ string_of_typ s)) 
+       in
 
   let check_assign lvaluet rvaluet err =
     match (lvaluet, rvaluet) with
@@ -116,7 +118,7 @@ let check (globs) =
       let split =
         let rec exp i l =
           if i < 2 then l else exp (i - 1) (Chliteral(s.[i]) :: l) in
-        exp (String.length s - 3) []
+        exp (String.length s - 3) [Chliteral(Char.chr 0)]
       in
       let e = List.map (expr vars) split in
       (Arr(ty), SAliteral(ty, e))
