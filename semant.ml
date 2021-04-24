@@ -155,7 +155,7 @@ let check (globs) =
           else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
       (ty, SArr_Ref(s, (idx_ty, e')))
     | Noexpr     -> (Void, SNoexpr)
-    | If (e1, e2, e3) ->
+    (* | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
         and (t2, e2') = expr vars e2
         and (t3, e3') = expr vars e3 in
@@ -167,7 +167,7 @@ let check (globs) =
         | Char when same -> Char
         | Arr(x) when same -> Arr(x)
         | _ -> raise (Failure ("illegal if; types must match"))
-        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
+        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3'))) *)
     | Binop(e1, op, e2) as e -> 
         let (t1, e1') = expr vars e1 
         and (t2, e2') = expr vars e2 in
@@ -183,9 +183,9 @@ let check (globs) =
                    when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
         | And | Or when same && t1 = Int -> Int
         | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2 ^ " in " ^ string_of_expr e))
         in (ty, SBinop((t1, e1'), op, (t2, e2')))
     | Unop(op, e) -> 
         let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
@@ -236,6 +236,10 @@ let check (globs) =
   and check_stmt vars = function
       Expr e -> SExpr (expr vars e)
     | Decl(lt, var, e) as ex -> 
+      let _ = match (StringHash.find_opt vars var) with
+      | Some(_) -> raise (Failure "variable has already been assigned!")
+      | None -> ()
+      in
       let (rt, e') = expr vars e in
       let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
         string_of_typ rt ^  in  ^ string_of_expr ex" in
@@ -258,6 +262,27 @@ let check (globs) =
         | s :: ss         -> let parsed_stmt = check_stmt v s in parsed_stmt :: check_stmt_list v ss
         | []              -> []
       in SBlock(check_stmt_list vars sl)
+    | If(ltyp, var, cond, e1, e2) ->
+      let (tc, c') = expr vars cond
+      and (t1, e1') = expr vars e1
+      and (t2, e2') = expr vars e2 in
+      let same = t1 = t2 in
+      (* e1 and e2 must be same type *)
+      let rtyp = match t1 with
+        Int when same -> Int
+      | Float when same -> Float
+      | Char when same -> Char
+      | Arr(x) when same -> Arr(x)
+      | _ -> raise (Failure ("illegal if; types must match in then and else branches")) in
+      let same2 = ltyp = rtyp in
+      let valid_assign = match ltyp with
+        Int when same2 -> Int
+      | Float when same2 -> Float
+      | Char when same2 -> Char
+      | Arr(x) when same2 -> Arr(x)
+      | _ -> raise (Failure ("illegal if; types must match for lval and rval")) in
+      StringHash.add vars var ltyp ;
+      SIf(ltyp, var, (tc, c'), (t1, e1'), (t2, e2'))
 
 
   and check_func_decl vars anon_func : (Ast.typ * Ast.typ * Sast.sstmt list) = 
