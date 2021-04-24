@@ -77,6 +77,8 @@ let translate (globs) =
   let obv_pt = L.pointer_type obv_t in
   let subscription_t  = L.named_struct_type context "subscription" in
   let subscription_pt = L.pointer_type subscription_t in
+  let converter_t = L.pointer_type (L.function_type void_t
+    ([| void_ptr_t; void_ptr_t; void_ptr_t; void_ptr_t |])) in
 
   ignore(L.struct_set_body obv_t [|
     void_ptr_t;       (* pointer to current value *)
@@ -84,7 +86,8 @@ let translate (globs) =
     void_ptr_t;       (* pointer to upstream value 2 *)
     void_ptr_t;       (* pointer to function *)
     subscription_pt;  (* pointer to subscription linked list *)
-    i32_t             (* observable type 1 if single, 2 if double *)
+    i32_t;            (* observable type 1 if single, 2 if double *)
+    converter_t       (* pointer to the converter *)
   |] false);
 
   ignore(L.struct_set_body subscription_t [|
@@ -422,6 +425,57 @@ let translate (globs) =
   in
 
 
+  (*
+    A new custom type converter function is created for every subscription.
+    Takes 4 void pointers, and internally converts them to correct types and pushes the result
+  *)
+  let build_type_converter (rtyp, typ1, typ2) (cls: observable_class) =
+
+    let nftype = L.function_type void_t ([| void_ptr_t; void_ptr_t; void_ptr_t; void_ptr_t |]) in
+    let nfunction = L.define_function "converter" nftype the_module in
+
+    let nbuilder = L.builder_at_end context (L.entry_block nfunction) in
+    L.set_value_name "r"  (L.params nfunction).(0);
+    L.set_value_name "p1" (L.params nfunction).(1);
+    L.set_value_name "p2" (L.params nfunction).(2);
+    L.set_value_name "f"  (L.params nfunction).(3);
+
+    let _rv  = L.build_bitcast (L.params nfunction).(0) (L.pointer_type rtyp) "i8_to_r"  nbuilder in
+    let _p1v = L.build_bitcast (L.params nfunction).(1) (L.pointer_type typ1) "i8_to_p1" nbuilder in
+
+    let build_call = match cls with
+      | SingleObservable ->
+        let dest_func_type = L.pointer_type (L.function_type rtyp ([| typ1 |])) in
+        let _fv  = L.build_bitcast (L.params nfunction).(3) dest_func_type        "i8_to_f"  nbuilder in
+
+        (* print_endline ("_fv: " ^ (L.string_of_lltype (L.type_of _fv)));  *)
+        let p1 = L.build_load _p1v "p1" nbuilder in
+        (* L.build_call printf_func [| int_format_str nbuilder;  L.const_int i32_t 1 |] *)
+        
+        L.build_call _fv [| p1 |]
+      | DoubleObservable ->
+        let dest_func_type = L.pointer_type (L.function_type rtyp ([| typ1; typ2 |])) in
+        let _p2v = L.build_bitcast (L.params nfunction).(2) (L.pointer_type typ2) "i8_to_p2" nbuilder in
+        let _fv  = L.build_bitcast (L.params nfunction).(3) dest_func_type        "i8_to_f"  nbuilder in
+
+        let p1 = L.build_load _p1v "p1" nbuilder in
+        let p2 = L.build_load _p2v "p2" nbuilder in
+        L.build_call _fv [| L.const_int i32_t 1;L.const_int i32_t 1 |]
+    in
+
+    let _ = match rtyp with
+      | void_t -> build_call "" nbuilder
+      | _ ->
+        let result = build_call "result" nbuilder in
+        L.build_store result _rv nbuilder
+    in
+    L.build_ret_void nbuilder;
+    nfunction
+  in
+
+  (* let the_thing = build_type_converter (i32_t, i32_t, i32_t) SingleObservable in *)
+
+
   let rec oexpr vars builder ((tt, oe) : soexpr) = match oe with
       SOId s -> L.build_load (lookup vars s) s builder
     | SMap(e, oe) ->
@@ -581,11 +635,14 @@ let translate (globs) =
           2.1. go to upstream and store itself as the child
           2.2. copy upstreamValue address to itself
           2.3. 
-        3. Call function on upstream value
+        3. Define converter function
+        4. Call function on upstream value
       *)
 
       (* 1 *)
       let func_p = expr global_vars builder e in
+      (* print_endline ("func_p: " ^ (L.string_of_lltype (L.type_of func_p)));  *)
+
       let upstream = oexpr global_vars builder oe in
       let obs = make_observable ((), L.const_int i32_t 0) SingleObservable builder in
 
@@ -617,9 +674,30 @@ let translate (globs) =
       *)
 
       (* 3 *)
-      let upstream_curr_p = L.build_bitcast upstream_curr_vp (L.pointer_type i32_t) "pp" builder in
+      let (rt, p1t) = match fst e with
+        | Func([x], y) -> (ltype_of_typ y, ltype_of_typ x)
+        | _ -> raise  (Failure "Subscriber must be a function")
+      in
+      let converter = build_type_converter (rt, p1t, i32_t) SingleObservable in
+      let obs_converter_p = L.build_struct_gep obs 6 "__converter" builder in
+      L.build_store converter obs_converter_p builder;
+
+
+      let _r  = L.build_load (L.build_struct_gep obs 0 "_r"  builder) "_r"  builder in
+      let _p1 = L.build_load (L.build_struct_gep obs 1 "_p1" builder) "_p1" builder in
+      (* let _p2 = L.build_load (L.build_struct_gep obs 2 "_p2" builder) "_p2" builder in *)
+      let _f  = L.build_load (L.build_struct_gep obs 3 "_f"  builder) "_f"  builder in
+      let _c  = L.build_load (L.build_struct_gep obs 6 "_c"  builder) "_c"  builder in
+      let result = L.build_call _c [| _r; _p1; _p1; _f |] "" builder in 
+
+
+
+      (* 4 *)
+      (* let upstream_curr_p = L.build_bitcast upstream_curr_vp (L.pointer_type i32_t) "pp" builder in
       let upstream_curr   = L.build_load upstream_curr_p "p" builder in
-      let result = L.build_call func_p [| upstream_curr |] "result" builder in 
+      let result = L.build_call func_p [| upstream_curr |] "result" builder in  *)
+
+
       L.build_call (lookup global_vars "onNext") [| obs |] "" builder;  (* won't need but won't hurt to have *)
       builder
     | _ -> raise (Failure ("Not Implemented 2100"))
@@ -674,6 +752,10 @@ let translate (globs) =
     L.build_store new_sub next' builder;
     L.build_ret_void builder;
   in
+
+
+
+
 
   let define_next = 
     (*
