@@ -1,12 +1,11 @@
-int add(int a, int b) {
-  return a + b;
+int foo(int a, char b, int c) {
+  return 7;
 }
 
-void foo() {
-  int q = 12;
-  float r = 1.9;
-  int a = add(q, r);
-  printi(a);
-}
+int bar(int a, void b, int c) {
+  return 0;
+} /* Error: illegal void formal b */
 
-foo();
+int baz() {
+  return 0;
+}

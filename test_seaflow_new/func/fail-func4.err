@@ -1,3 +1,5 @@
+Cannot allocate unsized type
+  %b = alloca void
 Stored value type does not match pointer operand type!
-  store i32 %a, double* %a1
- doubleLLVM ERROR: Broken module found, compilation aborted!
+  store i32 3, void* %b
+ voidLLVM ERROR: Broken module found, compilation aborted!

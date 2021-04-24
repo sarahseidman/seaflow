@@ -122,6 +122,10 @@ let translate (globs) =
   in
 
   let add_global_var (t, s, v, builder) =
+    let _ = match StringHash.find_opt global_vars s with
+      | Some(_) -> raise (Failure "Cannot declare global more than once!")
+      | None -> ()
+    in
     let rec init t' = match t' with
         A.Float -> L.const_float float_t 0.0
       | A.Int   -> L.const_int i32_t 0
@@ -360,6 +364,10 @@ let translate (globs) =
     let local_vars = StringHash.create 10 in
 
     let add_formal (t, n) p =
+      let _ = match StringHash.find_opt local_vars n with
+        | Some(_) -> raise (Failure "Cannot have duplicate formal!")
+        | None -> ()
+      in
       L.set_value_name n p;
       let local = L.build_alloca (ltype_of_typ t) n local_builder in
       ignore (L.build_store p local local_builder);

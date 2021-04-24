@@ -1,0 +1,6 @@
+void foo() {
+    float f = 5.5;
+    printf(f);
+}
+
+foo();

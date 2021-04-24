@@ -1,0 +1,15 @@
+int foo(int a, char b) {
+  return 0;
+}
+
+int bar() {
+  return 0;
+}
+
+int baz() {
+  foo(42, 'a');
+  foo(42, bar()); /* int and void, not int and char */
+  return 8;
+}
+
+baz();

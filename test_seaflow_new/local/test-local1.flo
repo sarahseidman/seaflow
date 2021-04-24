@@ -1,0 +1,6 @@
+void foo() {
+    int i = 7;
+    printi(i);
+}
+
+foo();

@@ -1,12 +1,19 @@
-void foo() {}
-
-int bar(int a, char b, int c) {
-  return a + c;
+int foo() {
+  return 5;
 }
 
-void baz()
-{
-  printi(bar(17, 'd', 25));
+int bar() {
+  return 3;
 }
 
-baz();
+int baz() {
+  return 1;
+}
+
+void bar() {
+  return 4;
+} /* Error: duplicate function bar */
+
+int boo() {
+  return 0;
+}

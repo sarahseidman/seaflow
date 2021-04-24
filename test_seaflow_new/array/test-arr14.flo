@@ -1,9 +1,10 @@
-float[] foo() {
-    float[] a = [1.0, 3.4, 2.1];
+char[] foo() {
+    char[] a = ['a', 'b', 'c'];
     return a;
 }
 
-float[] b = foo();
+char[] b = foo();
 
-printf(b[0]);
-printf(b[1]);
+printc(b[0]);
+printc(b[1]);
+printc(b[2]);
