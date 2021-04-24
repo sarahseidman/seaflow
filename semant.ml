@@ -330,9 +330,11 @@ let check (globs) =
         | Less | Leq | Greater | Geq
                    when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
         | And | Or when same && t1 = Int -> Observable(Int)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
+        | Add | Sub | Mult | Div | Equal | Neq | Less
+        | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Observable(Float)
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2))
       in (ty, SMap(
         (Func([t1],t1), SFuncExpr(
           [(t1, "x")],
@@ -362,9 +364,11 @@ let check (globs) =
         | Less | Leq | Greater | Geq
                    when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
         | And | Or when same && t1 = Int -> Observable(Int)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+        | Add | Sub | Mult | Div | Equal | Neq | Less
+        | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Observable(Float)
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2))
       in (ty, SMap(
         (Func([t2],t2), SFuncExpr(
           [(t2, "x")],
@@ -395,9 +399,11 @@ let check (globs) =
         | Less | Leq | Greater | Geq
                    when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
         | And | Or when same && t1 = Int -> Observable(Int)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+        | Add | Sub | Mult | Div | Equal | Neq | Less
+        | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Observable(Float)
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2))
       in (ty, SCombine(
         (Func([t1;t2],t1), SFuncExpr(
           [(t1, "x"); (t2, "y")],
@@ -421,7 +427,7 @@ let check (globs) =
       let (ot, oe') = oexpr vars oe in
 
       let (args, rt) = match t with
-        | Func(args, rt) -> (args, rt)
+        | Func(args, rt) when rt != Void -> (args, rt)
         | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
                                    " with map()"))
       in
@@ -440,7 +446,7 @@ let check (globs) =
       let (ot2, oe2') = oexpr vars oe2 in
 
       let (args, rt) = match t with
-        | Func(args, rt) -> (args, rt)
+        | Func(args, rt) when rt != Void -> (args, rt)
         | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
                                     " with map()"))
       in
@@ -489,7 +495,20 @@ let check (globs) =
     | Subscribe(s, e, oe) ->
       let (ft, e') = expr vars e in
       let (ot, oe') = oexpr vars oe in
-      (* Need to check function type *)
+
+      let (args, rt) = match ft with
+        | Func(args, rt) -> (args, rt)
+        | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
+                                  " with map()"))
+      in
+
+      let it' = match ot with
+        | Observable x -> x
+        | _ as x -> raise (Failure ("second arguement of map must be an observable"))
+      in let _ = match args with
+        | [a] when a = it' -> ()
+        | _ -> raise (Failure ("map function type does not match"))
+      in
       SSubscribe(s, (ft, e'), (ot, oe'))
     | _ -> raise (Failure ("Not Implemented 1000"))
   in

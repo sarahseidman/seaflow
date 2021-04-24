@@ -106,6 +106,17 @@ let translate (globs) =
 
   let global_builder = L.builder_at_end context (L.entry_block main_function) in
 
+
+  let rec get_base t = match t with
+      A.Float -> L.const_float float_t 0.0
+    | A.Int   -> L.const_int i32_t 0
+    | A.Char  -> L.const_int i8_t 0
+    | A.Arr(ty) -> L.const_null (ltype_of_typ ty)
+    | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
+    | A.Struct(x) as s -> L.const_pointer_null (ltype_of_typ s)
+    | A.Void  -> L.const_int i8_t 0
+  in
+
   let add_global_var (t, s, v, builder) =
     let rec init t' = match t' with
         A.Float -> L.const_float float_t 0.0
@@ -403,22 +414,17 @@ let translate (globs) =
   in
 
 
-  let make_observable (_, e') (cls: observable_class) builder =
-
-    let v_store = L.define_global "target" (L.const_int i32_t 0) the_module in   (* v_store: i32*  *)
-    L.build_store e' v_store builder;
-
+  let make_observable (t, e) builder =
+    let v_store = L.define_global "target" (get_base t) the_module in
+    let _ = match e with
+      | Some x -> ignore(L.build_store x v_store builder)
+      | None -> ()
+    in
     let obs = L.build_malloc obv_t "__obs" builder in
 
     let curr_vpp = L.build_struct_gep obs 0 "__curr_vpp" builder in
     let curr_vp = L.build_bitcast v_store void_ptr_t "store_to_i8" builder in
 
-    let class_p = L.build_struct_gep obs 5 "__class" builder in
-    let cls_number = match cls with
-      | SingleObservable -> 1
-      | DoubleObservable -> 2
-    in
-    ignore(L.build_store (L.const_int i32_t cls_number) class_p builder);
     ignore(L.build_store curr_vp curr_vpp builder);
 
     obs
@@ -429,7 +435,13 @@ let translate (globs) =
     A new custom type converter function is created for every subscription.
     Takes 4 void pointers, and internally converts them to correct types and pushes the result
   *)
-  let build_type_converter (rtyp, typ1, typ2) (cls: observable_class) =
+  let build_type_converter ((rtype: A.typ), typ1, typ2) (cls: observable_class) =
+    let llrtype = match rtype with
+      | A.Void -> i8_t
+      | _ as x -> ltype_of_typ x
+    in
+    let lltyp1  = ltype_of_typ typ1 in
+    let lltyp2  = ltype_of_typ typ2 in
 
     let nftype = L.function_type void_t ([| void_ptr_t; void_ptr_t; void_ptr_t; void_ptr_t |]) in
     let nfunction = L.define_function "converter" nftype the_module in
@@ -440,12 +452,12 @@ let translate (globs) =
     L.set_value_name "p2" (L.params nfunction).(2);
     L.set_value_name "f"  (L.params nfunction).(3);
 
-    let _rv  = L.build_bitcast (L.params nfunction).(0) (L.pointer_type rtyp) "i8_to_r"  nbuilder in
-    let _p1v = L.build_bitcast (L.params nfunction).(1) (L.pointer_type typ1) "i8_to_p1" nbuilder in
+    let _rv  = L.build_bitcast (L.params nfunction).(0) (L.pointer_type llrtype) "i8_to_r"  nbuilder in
+    let _p1v = L.build_bitcast (L.params nfunction).(1) (L.pointer_type lltyp1) "i8_to_p1" nbuilder in
 
     let build_call = match cls with
       | SingleObservable ->
-        let dest_func_type = L.pointer_type (L.function_type rtyp ([| typ1 |])) in
+        let dest_func_type = L.pointer_type (L.function_type llrtype ([| lltyp1 |])) in
         let _fv  = L.build_bitcast (L.params nfunction).(3) dest_func_type        "i8_to_f"  nbuilder in
 
         (* print_endline ("_fv: " ^ (L.string_of_lltype (L.type_of _fv)));  *)
@@ -454,17 +466,17 @@ let translate (globs) =
         
         L.build_call _fv [| p1 |]
       | DoubleObservable ->
-        let dest_func_type = L.pointer_type (L.function_type rtyp ([| typ1; typ2 |])) in
-        let _p2v = L.build_bitcast (L.params nfunction).(2) (L.pointer_type typ2) "i8_to_p2" nbuilder in
+        let dest_func_type = L.pointer_type (L.function_type llrtype ([| lltyp1; lltyp2 |])) in
+        let _p2v = L.build_bitcast (L.params nfunction).(2) (L.pointer_type lltyp2) "i8_to_p2" nbuilder in
         let _fv  = L.build_bitcast (L.params nfunction).(3) dest_func_type        "i8_to_f"  nbuilder in
 
         let p1 = L.build_load _p1v "p1" nbuilder in
         let p2 = L.build_load _p2v "p2" nbuilder in
-        L.build_call _fv [| L.const_int i32_t 1;L.const_int i32_t 1 |]
+        L.build_call _fv [| p1; p2 |]
     in
 
-    let _ = match rtyp with
-      | void_t -> build_call "" nbuilder
+    let _ = match rtype with
+      | A.Void -> build_call "" nbuilder;
       | _ ->
         let result = build_call "result" nbuilder in
         L.build_store result _rv nbuilder
@@ -473,17 +485,21 @@ let translate (globs) =
     nfunction
   in
 
-  (* let the_thing = build_type_converter (i32_t, i32_t, i32_t) SingleObservable in *)
-
 
   let rec oexpr vars builder ((tt, oe) : soexpr) = match oe with
       SOId s -> L.build_load (lookup vars s) s builder
     | SMap(e, oe) ->
       (*   Basically SSubscribe, but returns obs  *)
       (* 1 *)
+
+      let (rt, p1t) = match fst e with
+        | Func([x], r) -> (r, x)
+        | _ -> raise  (Failure "Subscriber must be a function")
+      in
+
       let func_p = expr global_vars builder e in
       let upstream = oexpr global_vars builder oe in
-      let obs = make_observable ((), L.const_int i32_t 0) SingleObservable builder in
+      let obs = make_observable (rt, None) builder in
 
       let obs_store = L.define_global "sub_obs" (L.const_null obv_pt) the_module in
       L.build_store obs obs_store builder;
@@ -505,6 +521,21 @@ let translate (globs) =
       L.build_store upstream_curr_vp obs_upv_vpp builder ;
 
       (* 3 *)
+      let converter = build_type_converter (rt, p1t, A.Void) SingleObservable in
+      let obs_converter_p = L.build_struct_gep obs 6 "__converter" builder in
+      L.build_store converter obs_converter_p builder;
+
+
+      (* 4 *)
+      let _r  = L.build_load (L.build_struct_gep obs 0 "_r"  builder) "_r"  builder in
+      let _p1 = L.build_load (L.build_struct_gep obs 1 "_p1" builder) "_p1" builder in
+      (* let _p2 = L.build_load (L.build_struct_gep obs 2 "_p2" builder) "_p2" builder in *)
+      let _f  = L.build_load (L.build_struct_gep obs 3 "_f"  builder) "_f"  builder in
+      let _c  = L.build_load (L.build_struct_gep obs 6 "_c"  builder) "_c"  builder in
+      let result = L.build_call _c [| _r; _p1; _p1; _f |] "" builder in 
+    
+
+      (* 3
       let upstream_curr_p = L.build_bitcast upstream_curr_vp (L.pointer_type i32_t) "pp" builder in
       let upstream_curr   = L.build_load upstream_curr_p "p" builder in
       let result = L.build_call func_p [| upstream_curr |] "result" builder in
@@ -512,17 +543,23 @@ let translate (globs) =
       let obs_curr_vpp = L.build_struct_gep obs 0 "__obs_curr_vpp" builder in
       let obs_curr_vp  = L.build_load obs_curr_vpp "__obs_curr_vp" builder in
       let obs_curr_p   = L.build_bitcast obs_curr_vp (L.pointer_type i32_t) "__obs_curr_p" builder in
-      L.build_store result obs_curr_p builder;
+      L.build_store result obs_curr_p builder; *)
 
       L.build_call (lookup global_vars "onNext") [| obs |] "" builder;  (* won't need but won't hurt to have *)
       ; obs
     | SCombine(e, oe1, oe2) ->
       (*   Basically SSubscribe, but returns obs  *)
       (* 1 *)
+
+      let (rt, p1t, p2t) = match fst e with
+        | Func([x; y], r) -> (r, x, y)
+        | _ -> raise  (Failure "Subscriber must be a function")
+      in
+
       let func_p = expr global_vars builder e in
       let upstream1 = oexpr global_vars builder oe1 in
       let upstream2 = oexpr global_vars builder oe2 in
-      let obs = make_observable ((), L.const_int i32_t 0) DoubleObservable builder in
+      let obs = make_observable (rt, None) builder in
 
       let obs_store = L.define_global "sub_obs" (L.const_null obv_pt) the_module in
       L.build_store obs obs_store builder;
@@ -551,8 +588,24 @@ let translate (globs) =
       let obs_upv2_vpp = L.build_struct_gep obs 2 "__dwn_upv2_vpp" builder in
       L.build_store upstream2_curr_vp obs_upv2_vpp builder ;
 
+
       (* 3 *)
-      let upstream1_curr_p = L.build_bitcast upstream1_curr_vp (L.pointer_type i32_t) "pp1" builder in
+      let converter = build_type_converter (rt, p1t, p2t) DoubleObservable in
+      let obs_converter_p = L.build_struct_gep obs 6 "__converter" builder in
+      L.build_store converter obs_converter_p builder;
+
+
+      (* 4 *)
+      let _r  = L.build_load (L.build_struct_gep obs 0 "_r"  builder) "_r"  builder in
+      let _p1 = L.build_load (L.build_struct_gep obs 1 "_p1" builder) "_p1" builder in
+      let _p2 = L.build_load (L.build_struct_gep obs 2 "_p2" builder) "_p2" builder in
+      let _f  = L.build_load (L.build_struct_gep obs 3 "_f"  builder) "_f"  builder in
+      let _c  = L.build_load (L.build_struct_gep obs 6 "_c"  builder) "_c"  builder in
+      let result = L.build_call _c [| _r; _p1; _p2; _f |] "" builder in 
+
+
+      (* 3 *)
+      (* let upstream1_curr_p = L.build_bitcast upstream1_curr_vp (L.pointer_type i32_t) "pp1" builder in
       let upstream1_curr   = L.build_load upstream1_curr_p "p1" builder in
       let upstream2_curr_p = L.build_bitcast upstream2_curr_vp (L.pointer_type i32_t) "pp2" builder in
       let upstream2_curr   = L.build_load upstream2_curr_p "p2" builder in
@@ -561,7 +614,7 @@ let translate (globs) =
       let obs_curr_vpp = L.build_struct_gep obs 0 "__obs_curr_vpp" builder in
       let obs_curr_vp  = L.build_load obs_curr_vpp "__obs_curr_vp" builder in
       let obs_curr_p   = L.build_bitcast obs_curr_vp (L.pointer_type i32_t) "__obs_curr_p" builder in
-      L.build_store result obs_curr_p builder;
+      L.build_store result obs_curr_p builder; *)
     
       L.build_call (lookup global_vars "onNext") [| obs |] "" builder;  (* won't need but won't hurt to have *)
       ; obs
@@ -597,7 +650,11 @@ let translate (globs) =
 
     | SODecl(lt, s, e) ->
       let e' = expr global_vars builder e in
-      let obv_ptr = make_observable (lt, e') SingleObservable builder in
+      let lt' = match lt with
+        | Observable x -> x
+        | _ -> raise (Failure "Observable declaration must use observable")
+      in
+      let obv_ptr = make_observable (lt', Some e') builder in
       let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
       (* let () = printf "function name= %s wo\n%!" s in *)
       L.build_store obv_ptr store builder;
@@ -612,11 +669,15 @@ let translate (globs) =
       builder
     | SOAssign(lt, s, e) ->
       let e' = expr global_vars builder e in
+      let lt' = match lt with
+        | Observable x -> x
+        | _ -> raise (Failure "Observable declaration must use observable")
+      in
       let obs = L.build_load (lookup global_vars s) s builder in
 
       let curr_vpp = L.build_struct_gep obs 0 "__curr_vpp" builder in                      (* curr_vpp: i8**  *)
       let curr_vp = L.build_load curr_vpp "__curr_vp" builder in                           (* curr_vp : i8*   *)
-      let curr_p = L.build_bitcast curr_vp (L.pointer_type i32_t) "i8_to_curr" builder in  (* curr_p  : i32*  *)
+      let curr_p = L.build_bitcast curr_vp (L.pointer_type (ltype_of_typ lt')) "i8_to_curr" builder in  (* curr_p  : i32*  *)
       L.build_store e' curr_p builder;
       L.build_call (lookup global_vars "onNext") [| obs |] "" builder;
       builder
@@ -640,11 +701,15 @@ let translate (globs) =
       *)
 
       (* 1 *)
+      let (rt, p1t) = match fst e with
+      | Func([x], r) -> (r, x)
+      | _ -> raise  (Failure "Subscriber must be a function")
+      in
       let func_p = expr global_vars builder e in
       (* print_endline ("func_p: " ^ (L.string_of_lltype (L.type_of func_p)));  *)
 
       let upstream = oexpr global_vars builder oe in
-      let obs = make_observable ((), L.const_int i32_t 0) SingleObservable builder in
+      let obs = make_observable (rt, None) builder in
 
       let obs_store = L.define_global "sub_obs" (L.const_null obv_pt) the_module in
       L.build_store obs obs_store builder;
@@ -674,15 +739,12 @@ let translate (globs) =
       *)
 
       (* 3 *)
-      let (rt, p1t) = match fst e with
-        | Func([x], y) -> (ltype_of_typ y, ltype_of_typ x)
-        | _ -> raise  (Failure "Subscriber must be a function")
-      in
-      let converter = build_type_converter (rt, p1t, i32_t) SingleObservable in
+      let converter = build_type_converter (rt, p1t, A.Void) SingleObservable in
       let obs_converter_p = L.build_struct_gep obs 6 "__converter" builder in
       L.build_store converter obs_converter_p builder;
 
 
+      (* 4 *)
       let _r  = L.build_load (L.build_struct_gep obs 0 "_r"  builder) "_r"  builder in
       let _p1 = L.build_load (L.build_struct_gep obs 1 "_p1" builder) "_p1" builder in
       (* let _p2 = L.build_load (L.build_struct_gep obs 2 "_p2" builder) "_p2" builder in *)
@@ -798,12 +860,12 @@ let translate (globs) =
 
     let while_body_bb = L.append_block context "while_body" next_function in
     let while_body_builder = L.builder_at_end context while_body_bb in
-
+(* 
     let single_bb = L.append_block context "single" next_function in
     let single_builder = L.builder_at_end context single_bb in
 
     let double_bb = L.append_block context "double" next_function in
-    let double_builder = L.builder_at_end context double_bb in
+    let double_builder = L.builder_at_end context double_bb in *)
 
     let merge_bb = L.append_block context "merge" next_function in
     let merge_builder = L.builder_at_end context merge_bb in
@@ -821,9 +883,9 @@ let translate (globs) =
 
 
     (* while_body block *)
-    let d_class' = L.build_struct_gep d 5 "__d_class_p" while_body_builder in      (* d_class' : i32*    *)
-    let d_class  = L.build_load d_class' "__d_class" while_body_builder in         (* d_class  : i32     *)
-    let cond2 = L.build_icmp L.Icmp.Eq (L.const_int i32_t 1) d_class "tmp2" while_body_builder in
+    (* let d_class' = L.build_struct_gep d 5 "__d_class_p" while_body_builder in      (* d_class' : i32*    *)
+    let d_class  = L.build_load d_class' "__d_class" while_body_builder in         d_class  : i32     *)
+    (* let cond2 = L.build_icmp L.Icmp.Eq (L.const_int i32_t 1) d_class "tmp2" while_body_builder in *)
 
     let next_sub' = L.build_struct_gep current 0 "__next_p" while_body_builder in  (* next_sub' : subscription**  *)
     let next_sub  = L.build_load next_sub' "__next" while_body_builder in          (* next_sub  : subscription*   *)
@@ -833,7 +895,15 @@ let translate (globs) =
 
     (* single block *)
     (* TODO: variable types *)
-    let temp_func_pt_typ = L.pointer_type (L.function_type i32_t [| i32_t |]) in
+
+    let _r  = L.build_load (L.build_struct_gep d 0 "_r"  while_body_builder) "_r"  while_body_builder in
+    let _p1 = L.build_load (L.build_struct_gep d 1 "_p1" while_body_builder) "_p1" while_body_builder in
+    let _p2 = L.build_load (L.build_struct_gep d 2 "_p2" while_body_builder) "_p2" while_body_builder in
+    let _f  = L.build_load (L.build_struct_gep d 3 "_f"  while_body_builder) "_f"  while_body_builder in
+    let _c  = L.build_load (L.build_struct_gep d 6 "_c"  while_body_builder) "_c"  while_body_builder in
+    let _ = L.build_call _c [| _r; _p1; _p2; _f |] "" while_body_builder in 
+
+    (* let temp_func_pt_typ = L.pointer_type (L.function_type i32_t [| i32_t |]) in
 
     let d_func_vpp = L.build_struct_gep d 3 "__func_vpp" single_builder in
     let d_func_vp  = L.build_load d_func_vpp "__func_vp" single_builder in
@@ -849,13 +919,13 @@ let translate (globs) =
     let d_curr_vpp = L.build_struct_gep d 0 "__curr_vpp" single_builder in
     let d_curr_vp  = L.build_load d_curr_vpp "__curr_vp" single_builder in
     let d_curr_p   = L.build_bitcast d_curr_vp (L.pointer_type i32_t) "i8_to_curr" single_builder in
-    L.build_store result d_curr_p single_builder;
+    L.build_store result d_curr_p single_builder; *)
 
     (*    onNext(d); *)
-    L.build_call next_function [| d |] "" single_builder ;
+    L.build_call next_function [| d |] "" while_body_builder ;
 
 
-
+(* 
     (* double block *)
     let temp_func_pt_typ2 = L.pointer_type (L.function_type i32_t [| i32_t; i32_t |]) in
 
@@ -881,16 +951,17 @@ let translate (globs) =
     L.build_store result2 d_curr2_p double_builder;
 
     (*    onNext(d); *)
-    L.build_call next_function [| d |] "" double_builder ;
+    L.build_call next_function [| d |] "" double_builder ; *)
 
 
 
     (* Connect blocks *)
     L.build_br while_pred_bb builder;
     L.build_cond_br cond while_body_bb merge_bb while_pred_builder;
-    L.build_cond_br cond2 single_bb double_bb while_body_builder;
-    L.build_br while_pred_bb single_builder;
-    L.build_br while_pred_bb double_builder;
+    (* L.build_cond_br cond2 single_bb double_bb while_body_builder; *)
+    (* L.build_br while_pred_bb single_builder;
+    L.build_br while_pred_bb double_builder; *)
+    L.build_br while_pred_bb while_body_builder;
     L.build_ret_void merge_builder;
     ()
   in
