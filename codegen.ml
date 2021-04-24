@@ -144,6 +144,37 @@ let translate (globs) =
         with Not_found -> raise (Failure ("Variable " ^ n ^ " not found"))
   in
 
+  let arr_concat a1 a2 builder = 
+    (* initialization of idx var *)
+    let init_idx = L.const_int i32_t 1 in 
+    let idxp = L.build_alloca (L.type_of init_idx) "idx" builder in
+    let s = L.build_store init_idx idxp builder in
+    let idx = L.build_load s "idx" builder in
+    
+    (* get length of 1st array *)
+    let i = L.const_int i32_t 0 in 
+    let len = L.build_gep a1 [| i |] "" builder in
+    let v = L.build_load len "vptr" builder in
+    let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
+    let length = L.build_load iptr "a" builder in
+
+    (* main_function should be replaced - this should be a builtin function like onNext *)
+    let pred_bb = L.append_block context "while" main_function in
+    ignore(L.build_br pred_bb builder);
+
+    let body_bb = L.append_block context "while_body" main_function in
+    let body_builder = L.builder_at_end context body_bb in
+    (* add_terminal (stmt (L.builder_at_end context body_bb) body) *)
+    (* here will be the loop body *)
+    (L.build_br pred_bb);
+
+    let pred_builder = L.builder_at_end context pred_bb in 
+    let bool_val = L.build_icmp L.Icmp.Slt idx length "comp" pred_builder in
+
+    let merge_bb = L.append_block context "merge" main_function in
+    ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
+    L.builder_at_end context merge_bb ; iptr
+  in
 
   let rec expr vars builder ((tt, e) : sexpr) = match e with
       SLiteral i   -> L.const_int i32_t i
@@ -189,27 +220,26 @@ let translate (globs) =
         in
         List.fold_left add_store 0 elems ;
         L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
-    | SArr_Ref(s, e) ->
+    | SArr_Ref(e1, e2) ->
       (* how to check for out of bounds index? *)
-      let ty = ltype_of_typ (StringHash.find arr_types s) in
-      let arr_var = lookup vars s in
-      let arr_var' = L.build_load arr_var "a" builder in
-      let idx = expr vars builder e in 
+      let ty = match e1 with 
+        | (_, SId(s)) -> ltype_of_typ (StringHash.find arr_types s)
+        | (_, SAliteral(t, a)) -> ltype_of_typ t
+      in
+      let arr = expr vars builder e1 in
+      let idx = expr vars builder e2 in 
       let sum = L.build_add idx (L.const_int i32_t 1) "sum" builder in
-      let vptr = L.build_gep arr_var' [| sum |] "" builder in
+      let vptr = L.build_gep arr [| sum |] "" builder in
       let v = L.build_load vptr "vptr" builder in
       let iptr = L.build_pointercast v (L.pointer_type ty) "iptr" builder in
       L.build_load iptr "a" builder 
-    | SLen(s) ->
-      let arr = lookup vars s in
-      let arr' = L.build_load arr "a" builder in
+    | SLen(e) ->
+      let arr = expr vars builder e in
       let idx = L.const_int i32_t 0 in 
-      let len = L.build_gep arr' [| idx |] "" builder in
+      let len = L.build_gep arr [| idx |] "" builder in
       let v = L.build_load len "vptr" builder in
       let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
       L.build_load iptr "a" builder
-      (* let ptr = L.build_pointercast len (L.pointer_type (L.type_of idx)) "lptr" builder in
-      L.build_load ptr "a" builder *)
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -217,23 +247,8 @@ let translate (globs) =
       L.build_select e1' e2' e3' "tmp" builder
     | SFuncExpr(params, rt, sstmts) ->
       build_function (params, rt, sstmts)
-    (*| SBinop ((A.Float,_ ) as e1, op, e2) ->
-      let e1' = expr vars builder e1
-      and e2' = expr vars builder e2 in
-      (match op with 
-        A.Add     -> L.build_fadd
-      | A.Sub     -> L.build_fsub
-      | A.Mult    -> L.build_fmul
-      | A.Div     -> L.build_fdiv 
-      | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
-      | A.Neq     -> L.build_fcmp L.Fcmp.One
-      | A.Less    -> L.build_fcmp L.Fcmp.Olt
-      | A.Leq     -> L.build_fcmp L.Fcmp.Ole
-      | A.Greater -> L.build_fcmp L.Fcmp.Ogt
-      | A.Geq     -> L.build_fcmp L.Fcmp.Oge
-      | A.And | A.Or ->
-          raise (Failure "internal error: semant should have rejected and/or on float")
-      ) e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder*)
+    | SBinop ((A.Arr(_),_ ) as e1, op, e2) -> 
+        arr_concat (expr vars builder e1) (expr vars builder e2) builder
     | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in

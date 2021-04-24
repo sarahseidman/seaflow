@@ -25,7 +25,7 @@ type expr =
   | Unop of uop * expr
   | Call of expr * expr list
   | Ref of expr * string
-  | Arr_Ref of string * expr
+  | Arr_Ref of expr * expr
   | If of expr * expr * expr
   | FuncExpr of bind list * stmt list
   | Sliteral of expr list
@@ -141,7 +141,7 @@ let rec string_of_expr = function
   | Call(ef, el) ->
     string_of_expr ef ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Ref(e, s) -> string_of_expr e ^ "." ^ s
-  | Arr_Ref(s, e) -> s ^ "[" ^ string_of_expr e ^ "]"
+  | Arr_Ref(e1, e2) -> string_of_expr e1 ^ "[" ^ string_of_expr e2 ^ "]"
   | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
       ^ string_of_expr e3
   | FuncExpr(bind_list, stmt_list) -> "(" ^ 

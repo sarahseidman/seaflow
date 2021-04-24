@@ -119,8 +119,10 @@ let check (globs) =
     | Id s       -> (type_of_identifier vars s, SId s)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
+      (* this is ugly but it allows reference of array literals too! *)
       let str_name = match e' with
         | SId(x) -> x
+        | SAliteral(_,_) -> "NONE"
         | _ -> raise (Failure ("Struct field")) 
       in
       let struct_ref ty str = 
@@ -133,10 +135,12 @@ let check (globs) =
       in
       let arr_len name str = 
         let _ = if (str = "length") then () else raise (Failure ("invalid reference: is not struct or array length")) in
-        let ty = type_of_identifier vars name in 
+        let ty_of_lit = function | SAliteral(x, _) -> Arr(x) in
+        let ty = if (name = "NONE") then (ty_of_lit e') else type_of_identifier vars name in 
         let _ = try typ_of_arr ty
             with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
-        (Int, SLen(name))
+        let e' = expr vars e in
+        (Int, SLen(e'))
       in
       let found = StringHash.mem struct_defs (string_of_typ t') in
       let ret = match found with 
@@ -147,13 +151,17 @@ let check (globs) =
       let e' = List.map (expr vars) expr_list in
       let ty = List.map fst e' in
       (Sbody(ty), SSliteral(e'))
-    | Arr_Ref(s, e) ->
+    | Arr_Ref(e1, e2) ->
+      let ty = match (expr vars e1) with
+        | (_, SId(s)) -> typ_of_arr (type_of_identifier vars s)
+        | (_, SAliteral(t, _)) -> t
+      in 
+      let e1' = expr vars e1 in
       (* basically just check that the array exists and that expr is an int *)
-      let ty = typ_of_arr (type_of_identifier vars s) in
-      let (idx_ty, e') = expr vars e in
+      let (idx_ty, e') = expr vars e2 in
       let _ = if idx_ty = Int then () 
           else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
-      (ty, SArr_Ref(s, (idx_ty, e')))
+      (ty, SArr_Ref(e1', (idx_ty, e')))
     | Noexpr     -> (Void, SNoexpr)
     | If (e1, e2, e3) ->
         let (t1, e1') = expr vars e1
