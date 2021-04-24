@@ -167,9 +167,9 @@ let check (globs) =
                    when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
         | And | Or when same && t1 = Int -> Int
         | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2 ^ " in " ^ string_of_expr e))
         in (ty, SBinop((t1, e1'), op, (t2, e2')))
     | Unop(op, e) -> 
         let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
@@ -220,6 +220,10 @@ let check (globs) =
   and check_stmt vars = function
       Expr e -> SExpr (expr vars e)
     | Decl(lt, var, e) as ex -> 
+      let _ = match (StringHash.find_opt vars var) with
+      | Some(_) -> raise (Failure "variable has already been assigned!")
+      | None -> ()
+      in
       let (rt, e') = expr vars e in
       let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
         string_of_typ rt ^  in  ^ string_of_expr ex" in
