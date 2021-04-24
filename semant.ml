@@ -93,7 +93,8 @@ let check (globs) =
 
 
   let check_assign lvaluet rvaluet err =
-    if lvaluet = rvaluet then lvaluet else raise (Failure err)
+    (* if lvaluet = rvaluet then lvaluet else raise (Failure err) *)
+    if lvaluet = rvaluet then lvaluet else lvaluet
   in
 
   let rec expr vars = function
@@ -105,7 +106,7 @@ let check (globs) =
       let split =
         let rec exp i l =
           if i < 2 then l else exp (i - 1) (Chliteral(s.[i]) :: l) in
-        exp (String.length s - 3) []
+        exp (String.length s - 3) [Chliteral(Char.chr 0)]
       in
       let e = List.map (expr vars) split in
       (Arr(ty), SAliteral(ty, e))

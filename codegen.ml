@@ -128,6 +128,7 @@ let translate (globs) =
   let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
   let float_format_str builder = L.build_global_stringptr "%f\n" "fmt" builder in
   let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in
+  let str_format_str builder = L.build_global_stringptr "%s\n" "fmt" builder in
 
 
   let next_ftype = L.function_type void_t [| obv_pt |] in
@@ -144,36 +145,103 @@ let translate (globs) =
         with Not_found -> raise (Failure ("Variable " ^ n ^ " not found"))
   in
 
-  let arr_concat a1 a2 builder = 
-    (* initialization of idx var *)
+  let add_store_arr ptr builder i e = 
+    let idx = L.const_int i32_t i in
+    let eptr = L.build_gep ptr [|idx|] "e" builder in
+    let cptr = L.build_pointercast eptr 
+        (L.pointer_type (L.pointer_type (L.type_of e))) "p" builder in
+    let ealloc = L.build_alloca (L.type_of e) "ealloc" builder in
+    L.build_store e ealloc builder ;
+    L.build_store ealloc cptr builder; i+1
+  in
+
+  let get_array_len a builder = 
+    let idx = L.const_int i32_t 0 in 
+    let len = L.build_gep a [| idx |] "" builder in
+    let v = L.build_load len "vptr" builder in
+    let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
+    L.build_load iptr "a" builder
+  in
+
+  let arr_ty_of_expr = function  
+    | (_, SId(s)) -> ltype_of_typ (StringHash.find arr_types s)
+    | (_, SAliteral(t, a)) -> ltype_of_typ t
+  in
+
+  (*
+      int[] a = [1,2,3];
+      int[] b = [1,2,3];
+      int[] c = []; // but of len 6
+      int cidx = 0;
+
+      int i = 0;
+      while (i < a.length){
+          int tmp = a[i];
+          c[cidx] = tmp
+          cidx++;
+          i++;
+      }
+      i = 0;
+      while (i < b.length){
+          int tmp = b[i];
+          c[cidx] = tmp
+          cidx++;
+          i++;
+      }
+  
+  *)
+
+  let arr_concat a1 a2 ty builder = 
+    (* initialization of idx var - source *)
     let init_idx = L.const_int i32_t 1 in 
     let idxp = L.build_alloca (L.type_of init_idx) "idx" builder in
     let s = L.build_store init_idx idxp builder in
-    let idx = L.build_load s "idx" builder in
+    let src_idx = L.build_load s "idx" builder in
+
+    (* initialization of idx var - dest *)
+    let init_idx = L.const_int i32_t 1 in 
+    let idxp = L.build_alloca (L.type_of init_idx) "idx" builder in
+    let s = L.build_store init_idx idxp builder in
+    let dest_idx = L.build_load s "idx" builder in
     
     (* get length of 1st array *)
-    let i = L.const_int i32_t 0 in 
-    let len = L.build_gep a1 [| i |] "" builder in
-    let v = L.build_load len "vptr" builder in
-    let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
-    let length = L.build_load iptr "a" builder in
+    let flen = get_array_len a1 builder in
 
-    (* main_function should be replaced - this should be a builtin function like onNext *)
+    (* get length of second array *)
+    let slen = get_array_len a2 builder in
+
+    let dest_len = L.build_add flen slen "sum" builder in
+    let size = L.build_add dest_len (L.const_int i32_t 1) "size" builder in
+
+    (* create destination array *)
+    let ptr = L.build_array_alloca void_ptr_t size "a" builder in
+
+    (* main_function should be replaced - this should be a builtin function like onNext? *)
     let pred_bb = L.append_block context "while" main_function in
     ignore(L.build_br pred_bb builder);
 
     let body_bb = L.append_block context "while_body" main_function in
     let body_builder = L.builder_at_end context body_bb in
+
+    (* loop body *)
+
+    (* int tmp = a[i]; *)
+
+
+    (* c[cidx] = tmp *)
+    (* cidx++; *)
+    (* i++; *)
+
+
     (* add_terminal (stmt (L.builder_at_end context body_bb) body) *)
-    (* here will be the loop body *)
     (L.build_br pred_bb);
 
     let pred_builder = L.builder_at_end context pred_bb in 
-    let bool_val = L.build_icmp L.Icmp.Slt idx length "comp" pred_builder in
+    let bool_val = L.build_icmp L.Icmp.Slt src_idx dest_len "comp" pred_builder in
 
     let merge_bb = L.append_block context "merge" main_function in
     ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
-    L.builder_at_end context merge_bb ; iptr
+    L.builder_at_end context merge_bb ; ptr
   in
 
   let rec expr vars builder ((tt, e) : sexpr) = match e with
@@ -183,19 +251,10 @@ let translate (globs) =
     | SId s        -> L.build_load (lookup vars s) s builder
     | SAliteral (ty, a) ->
       let elems = List.map (expr vars builder) a in
-      let arr_t = void_ptr_t in
       let num = List.length elems in
-      let ptr = L.build_array_alloca arr_t (L.const_int i32_t (num+1)) "a" builder in
-      let add_store i e = 
-        let idx = L.const_int i32_t i in
-        let eptr = L.build_gep ptr [|idx|] "e" builder in
-        let cptr = L.build_pointercast eptr 
-            (L.pointer_type (L.pointer_type (L.type_of e))) "p" builder in
-        let ealloc = L.build_alloca (L.type_of e) "ealloc" builder in
-        L.build_store e ealloc builder ;
-        L.build_store ealloc cptr builder; i+1
-      in
-      add_store 0 (L.const_int i32_t num) ; List.fold_left add_store 1 elems ; ptr
+      let ptr = L.build_array_alloca void_ptr_t (L.const_int i32_t (num+1)) "a" builder in
+      add_store_arr ptr builder 0 (L.const_int i32_t num) ; 
+      List.fold_left (add_store_arr ptr builder) 1 elems ; ptr
     | SRef(str_name, type_of_struct, fieldname) ->
       let loc = L.build_load (lookup vars str_name) str_name builder in
       let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
@@ -222,10 +281,7 @@ let translate (globs) =
         L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
     | SArr_Ref(e1, e2) ->
       (* how to check for out of bounds index? *)
-      let ty = match e1 with 
-        | (_, SId(s)) -> ltype_of_typ (StringHash.find arr_types s)
-        | (_, SAliteral(t, a)) -> ltype_of_typ t
-      in
+      let ty = arr_ty_of_expr e1 in
       let arr = expr vars builder e1 in
       let idx = expr vars builder e2 in 
       let sum = L.build_add idx (L.const_int i32_t 1) "sum" builder in
@@ -233,13 +289,7 @@ let translate (globs) =
       let v = L.build_load vptr "vptr" builder in
       let iptr = L.build_pointercast v (L.pointer_type ty) "iptr" builder in
       L.build_load iptr "a" builder 
-    | SLen(e) ->
-      let arr = expr vars builder e in
-      let idx = L.const_int i32_t 0 in 
-      let len = L.build_gep arr [| idx |] "" builder in
-      let v = L.build_load len "vptr" builder in
-      let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
-      L.build_load iptr "a" builder
+    | SLen(e) -> get_array_len (expr vars builder e) builder
     | SIf (e1, e2, e3) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2
@@ -248,7 +298,8 @@ let translate (globs) =
     | SFuncExpr(params, rt, sstmts) ->
       build_function (params, rt, sstmts)
     | SBinop ((A.Arr(_),_ ) as e1, op, e2) -> 
-        arr_concat (expr vars builder e1) (expr vars builder e2) builder
+        let elem_ty = arr_ty_of_expr e1 in
+        arr_concat (expr vars builder e1) (expr vars builder e2) elem_ty builder
     | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in
