@@ -1,0 +1,8 @@
+int c = 5;
+char b = 'c';
+void a = 0; /* global variables should not be void */
+
+
+int foo() {
+  return 0;
+}

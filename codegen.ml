@@ -130,6 +130,7 @@ let translate (globs) =
       | A.Arr(ty) -> L.const_null (L.type_of v)
       | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
       | A.Struct(x) as s -> L.const_pointer_null (ltype_of_typ s)
+      | _ as x -> raise (Failure ("Cannot have global of type: " ^ A.string_of_typ x))
     in
     let store = L.define_global s (init t) the_module in
     L.build_store v store builder ; StringHash.add global_vars s store
