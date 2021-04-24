@@ -107,7 +107,7 @@ let translate (globs) =
   let global_builder = L.builder_at_end context (L.entry_block main_function) in
 
 
-  let rec get_base t = match t with
+  let rec get_base (t: A.typ) = match t with
       A.Float -> L.const_float float_t 0.0
     | A.Int   -> L.const_int i32_t 0
     | A.Char  -> L.const_int i8_t 0
@@ -115,6 +115,7 @@ let translate (globs) =
     | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
     | A.Struct(x) as s -> L.const_pointer_null (ltype_of_typ s)
     | A.Void  -> L.const_int i8_t 0
+    | _ as x -> raise (Failure ("No match found for " ^ A.string_of_typ x))
   in
 
   let add_global_var (t, s, v, builder) =

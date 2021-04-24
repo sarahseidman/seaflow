@@ -323,24 +323,24 @@ let check (globs) =
       let t1 = get_observable_inner_type ot1 in
       let same = t1 = t2 in
       let ty = match op with
-        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
-        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
-        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
-        | Equal | Neq            when same               -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Int
+        | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
+        | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
-        | And | Or when same && t1 = Int -> Observable(Int)
-        | Add | Sub | Mult | Div | Equal | Neq | Less
-        | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Observable(Float)
+                  when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
+        | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater
+        | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
         | _ -> raise (Failure ("illegal binary operator "  ^
                                 string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                                 string_of_typ t2))
-      in (ty, SMap(
-        (Func([t1],t1), SFuncExpr(
+      in (Observable(ty), SMap(
+        (Func([t1],ty), SFuncExpr(
           [(t1, "x")],
-          t1,
+          ty,
           [SReturn (
-            t1,
+            ty,
             SBinop(
               (t1, SId("x")),
               op,
@@ -357,24 +357,24 @@ let check (globs) =
       let t2 = get_observable_inner_type ot2 in
       let same = t1 = t2 in
       let ty = match op with
-        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
-        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
-        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
-        | Equal | Neq            when same               -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Int
+        | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
+        | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
-        | And | Or when same && t1 = Int -> Observable(Int)
-        | Add | Sub | Mult | Div | Equal | Neq | Less
-        | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Observable(Float)
+                  when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
+        | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater
+        | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
         | _ -> raise (Failure ("illegal binary operator "  ^
                                 string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                                 string_of_typ t2))
-      in (ty, SMap(
-        (Func([t2],t2), SFuncExpr(
+      in (Observable(ty), SMap(
+        (Func([t2],ty), SFuncExpr(
           [(t2, "x")],
-          t2,
+          ty,
           [SReturn (
-            t2,
+            ty,
             SBinop(
               (t1, e1'),
               op,
@@ -392,24 +392,24 @@ let check (globs) =
       let t2 = get_observable_inner_type ot2 in
       let same = t1 = t2 in
       let ty = match op with
-        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
-        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
-        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
-        | Equal | Neq            when same               -> Observable(Int)
+          Add | Sub | Mult | Div when same && t1 = Int   -> Int
+        | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
+        | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
-        | And | Or when same && t1 = Int -> Observable(Int)
-        | Add | Sub | Mult | Div | Equal | Neq | Less
-        | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Observable(Float)
+                  when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
+        | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater
+        | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
         | _ -> raise (Failure ("illegal binary operator "  ^
                                 string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                                 string_of_typ t2))
-      in (ty, SCombine(
-        (Func([t1;t2],t1), SFuncExpr(
+      in (Observable(ty), SCombine(
+        (Func([t1;t2],ty), SFuncExpr(
           [(t1, "x"); (t2, "y")],
-          t1,
+          ty,
           [SReturn (
-            t1,
+            ty,
             SBinop(
               (t1, SId("x")),
               op,
