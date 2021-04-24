@@ -1,0 +1,14 @@
+struct Point {
+    int x;
+    int y;
+};
+
+struct Point2 {
+    int z;
+    int q;
+};
+
+struct Point p = {1,2};
+struct Point2 q = p;
+printi(q.z);
+printi(q.q);

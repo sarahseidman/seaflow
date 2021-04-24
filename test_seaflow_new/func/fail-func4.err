@@ -1,5 +1,1 @@
-Cannot allocate unsized type
-  %b = alloca void
-Stored value type does not match pointer operand type!
-  store i32 3, void* %b
- voidLLVM ERROR: Broken module found, compilation aborted!
+Fatal error: exception Failure("cannot assign to void type!")

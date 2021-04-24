@@ -1,0 +1,17 @@
+void apple(float x) {
+    printf(x);
+    return;
+}
+
+float multiple(int x, float y) {
+    return x * y;
+}
+
+
+int $a = 5;
+float b = 5.0;
+
+float $c = combine(multiple, $a, b);
+subscribe(apple, $c);
+
+$a = 50;

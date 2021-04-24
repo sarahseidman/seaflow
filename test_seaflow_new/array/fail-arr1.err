@@ -1,3 +1,2 @@
-Stored value type does not match pointer operand type!
-  store i32 %a14, double* @b
- doubleLLVM ERROR: Broken module found, compilation aborted!
+Fatal error: exception Failure("illegal assignment float = int in float b = a[0];
+")

@@ -1,7 +1,1 @@
-Function arguments must have first-class types!
-void %b
-Cannot allocate unsized type
-  %b2 = alloca void
-storing unsized types is not allowed
-  store void %b, void* %b2
-LLVM ERROR: Broken module found, compilation aborted!
+Fatal error: exception Failure("cannot have void formal!")

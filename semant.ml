@@ -91,9 +91,19 @@ let check (globs) =
     with Not_found -> raise (Failure ("undeclared identifier " ^ s))
   in
 
+  let find_body s = StringHash.find struct_by_body (string_of_typ s) in
 
   let check_assign lvaluet rvaluet err =
-    if lvaluet = rvaluet then lvaluet else raise (Failure err)
+    match (lvaluet, rvaluet) with
+      (Struct(x), Struct(y)) -> let xbody = find_body lvaluet in
+        let ybody = find_body rvaluet in
+        let same = xbody = ybody in
+        if same then lvaluet else raise (Failure err)
+    | (Struct(x), Sbody(y)) -> let xbody = find_body lvaluet in
+        let same = xbody = rvaluet in
+        if same then lvaluet else raise (Failure err)
+    | _ -> let same = lvaluet = rvaluet in
+        if same then lvaluet else raise (Failure err)
   in
 
   let rec expr vars = function
@@ -228,7 +238,7 @@ let check (globs) =
           | _ -> false
         ) in
 
-        let find_body s = StringHash.find struct_by_body (string_of_typ s) in
+        
 
         let param_length = List.length formals in
         if List.length args != param_length then
@@ -236,10 +246,10 @@ let check (globs) =
                             " arguments in " ^ string_of_expr call))
         else let check_call ft e = 
           (* structs are a special case - we compare struct body to struct literal *)
-          let ft_is_struct = (is_struct ft) in
-          let ft = if ft_is_struct then (find_body ft) else ft in
+          (* let ft_is_struct = (is_struct ft) in
+          let ft = if ft_is_struct then (find_body ft) else ft in *)
           let (et, e') = expr vars e in 
-          let et = if ft_is_struct then find_body et else et in
+          (* let et = if ft_is_struct then find_body et else et in *)
           let err = "illegal argument: found "  ^ string_of_typ et ^
               " expected "  ^ string_of_typ ft ^  " in "  ^ string_of_expr e
           in (check_assign ft et err, e')
@@ -256,15 +266,19 @@ let check (globs) =
   and check_stmt vars = function
       Expr e -> SExpr (expr vars e)
     | Decl(lt, var, e) as ex -> 
+      let _ = match lt with
+          Void -> raise (Failure "cannot assign to void type!")
+        | _ -> ()
+      in
       let _ = match (StringHash.find_opt vars var) with
       | Some(_) -> raise (Failure "variable has already been assigned!")
       | None -> ()
       in
       let (rt, e') = expr vars e in
-      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
-        string_of_typ rt ^  in  ^ string_of_expr ex" in
+      let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^ 
+        string_of_typ rt ^ " in " ^ string_of_stmt ex in
       StringHash.add vars var lt ;
-      (*(check_assign lt rt err, *) SDecl(lt, var, (rt, e'))
+      (check_assign lt rt err); SDecl(lt, var, (rt, e'))
     | Return e -> let (t, e') = expr vars e in SReturn (t, e') 
       (* if t = func.typ then SReturn (t, e') 
       else raise (Failure ("return gives  ^ string_of_typ t ^  expected  ^
@@ -318,8 +332,16 @@ let check (globs) =
         SBlock(sl) -> sl
       | _ -> raise (Failure ("internal error2: block didn't become a block?"))
     in
+    
+    let check_param param = (match param with
+        Int(_) -> ()
+      | Void -> raise (Failure ("cannot have void formal!"))
+      | _ -> ()
+    )
+    in
 
     let param_types = List.map fst params in
+    let _ = List.map check_param param_types in
 
     let check_empty = match sbody with
       | [] -> raise (Failure ("a function cannot have an empty body"))
@@ -490,8 +512,8 @@ let check (globs) =
     | OExpr oe -> SOExpr(oexpr vars oe)
     | ODecl(lt, var, e) as ex ->
       let (rt, e') = expr vars e in
-      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
-        string_of_typ rt ^  in  ^ string_of_expr ex" in
+      let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^ 
+        string_of_typ rt ^ " in " ^ string_of_obs_stmt ex in
       StringHash.add vars var lt;
       SODecl(lt, var, (rt, e'))
     | OODecl(lt, var, oe) as ex ->

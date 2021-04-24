@@ -1,0 +1,13 @@
+struct Foo {
+    int i;
+    int j;
+    char c;
+};
+
+int bar(struct Foo f) {
+    printi(f.i);
+    printi(f.j);
+    printc(f.c);
+}
+
+bar({4, 2, 'x'});
