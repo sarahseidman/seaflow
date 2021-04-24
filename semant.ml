@@ -98,6 +98,7 @@ let check (globs) =
 
   let rec expr vars = function
       Literal  l -> (Int, SLiteral l)
+    | Bliteral l -> (Bool, SBliteral l)
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
     | Strliteral s ->
@@ -174,19 +175,30 @@ let check (globs) =
         (* All binary operators require operands of the same type *)
         let same = t1 = t2 in
         (* Determine expression type based on operator and operand types *)
-        let ty = match op with
-          Add | Sub | Mult | Div when same && t1 = Int   -> Int
-        | Add | Sub | Mult | Div when same && t1 = Float -> Float
-        | Add | Sub | Mult | Div when same && t1 = Char -> Char
-        | Equal | Neq            when same               -> Int
-        | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
-        | And | Or when same && t1 = Int -> Int
-        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
-        | _ -> raise (Failure ("illegal binary operator "  ^
-                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
-                                string_of_typ t2 ^ " in " ^ string_of_expr e))
-        in (ty, SBinop((t1, e1'), op, (t2, e2')))
+        (match op with
+          | And | Or ->
+            let (_t1, _e1') = match t1 with
+              | Int -> expr vars (Binop(e1, Neq, Literal(0)))
+              | Bool -> (t1, e1')
+              | _ -> raise (Failure "&& and || must be used with integers")
+            in
+            let (_t2, _e2') = match t2 with
+              | Int -> expr vars (Binop(e2, Neq, Literal(0)))
+              | Bool -> (t2, e2')
+              | _ -> raise (Failure "&& and || must be used with integers")
+            in (Bool, SBinop((_t1, _e1'), op, (_t2, _e2')))
+          | _ -> let ty = match op with
+              Add | Sub | Mult | Div when same && t1 = Int   -> Int
+            | Add | Sub | Mult | Div when same && t1 = Float -> Float
+            | Add | Sub | Mult | Div when same && t1 = Char  -> Char
+            | Equal | Neq            when same               -> Bool
+            | Less | Leq | Greater | Geq
+                      when same && (t1 = Int || t1 = Float || t1 = Char) -> Bool
+            | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
+            | _ -> raise (Failure ("illegal binary operator "  ^
+                                    string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                    string_of_typ t2 ^ " in " ^ string_of_expr e))
+            in (ty, SBinop((t1, e1'), op, (t2, e2'))))
     | Unop(op, e) -> 
         let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
     | Call(f, args) as call -> 

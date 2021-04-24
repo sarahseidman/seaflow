@@ -1,3 +1,4 @@
+
 (* Code generation: translate takes a semantically checked AST and
 produces LLVM IR
 
@@ -43,7 +44,7 @@ let translate (globs) =
   (* Get types from the context *)
   let i32_t      = L.i32_type    context
   and i8_t       = L.i8_type     context
-  (* and i1_t       = L.i1_type     context *)
+  and i1_t       = L.i1_type     context
   and float_t    = L.double_type context
   (* and char_t     = L.i8_type     context *)
   and void_t     = L.void_type   context
@@ -57,6 +58,7 @@ let translate (globs) =
   and ltype_of_typ : A.typ -> L.lltype = function
       A.Int   -> i32_t
     | A.Char  -> i8_t
+    | A.Bool  -> i1_t
     | A.Float -> float_t
     | A.Void  -> void_t
     | A.Arr(x) -> L.pointer_type void_ptr_t
@@ -110,6 +112,7 @@ let translate (globs) =
   let rec get_base (t: A.typ) = match t with
       A.Float -> L.const_float float_t 0.0
     | A.Int   -> L.const_int i32_t 0
+    | A.Bool  -> L.const_int i1_t 0
     | A.Char  -> L.const_int i8_t 0
     | A.Arr(ty) -> L.const_null (ltype_of_typ ty)
     | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
@@ -122,6 +125,7 @@ let translate (globs) =
     let rec init t' = match t' with
         A.Float -> L.const_float float_t 0.0
       | A.Int   -> L.const_int i32_t 0
+      | A.Bool  -> L.const_int i1_t 0
       | A.Char  -> L.const_int i8_t 0
       | A.Arr(ty) -> L.const_null (L.type_of v)
       | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
@@ -162,6 +166,7 @@ let translate (globs) =
 
   let rec expr vars builder ((tt, e) : sexpr) = match e with
       SLiteral i   -> L.const_int i32_t i
+    | SBliteral b  -> L.const_int i1_t (if b then 1 else 0)
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
@@ -257,23 +262,30 @@ let translate (globs) =
       let same = t1 = t2 in
       let same_int_or_char = (same && (t1 = i32_t || t1 = i8_t))
       and same_float = (same && t1 = float_t)
+      and same_bool = (same && t1 = i1_t)
       and not_same = (not(same) && (t1 = i32_t || t1 = float_t) && (t2 = i32_t || t2 = float_t))
       and float_left = (t1 = float_t && t2 = i32_t)
       and float_right = (t1 = i32_t && t2 = float_t) in
       let to_float v = L.build_sitofp v float_t "tmp" builder in
+      (* let to_bool v2 = L.build_sitofp v2 i1_t "tmp" builder in *)
+      (* let to_bool v2 = L.build_intcast v2 i1_t "tmp" builder in *)
+      
       (match op with
         A.Add when same_int_or_char       -> L.build_add e1' e2' "tmp" builder
       | A.Sub when same_int_or_char       -> L.build_sub e1' e2' "tmp" builder
       | A.Mult when same_int_or_char      -> L.build_mul e1' e2' "tmp" builder
       | A.Div when same_int_or_char       -> L.build_sdiv e1' e2' "tmp" builder
-      | A.And when same_int_or_char       -> L.build_and e1' e2' "tmp" builder
-      | A.Or when same_int_or_char        -> L.build_or e1' e2' "tmp" builder
+      (* | A.And when same_int_or_char       -> L.build_and e1' e2' "tmp" builder
+      | A.Or when same_int_or_char        -> L.build_or e1' e2' "tmp" builder *)
       | A.Equal when same_int_or_char     -> L.build_icmp L.Icmp.Eq e1' e2' "tmp" builder
       | A.Neq when same_int_or_char       -> L.build_icmp L.Icmp.Ne e1' e2' "tmp" builder
       | A.Less when same_int_or_char      -> L.build_icmp L.Icmp.Slt e1' e2' "tmp" builder
       | A.Leq when same_int_or_char       -> L.build_icmp L.Icmp.Sle e1' e2' "tmp" builder
       | A.Greater when same_int_or_char   -> L.build_icmp L.Icmp.Sgt e1' e2' "tmp" builder
       | A.Geq when same_int_or_char       -> L.build_icmp L.Icmp.Sge e1' e2' "tmp" builder
+
+      | A.And when same_bool              -> L.build_and e1' e2' "tmp" builder
+      | A.Or when same_bool               -> L.build_or e1' e2' "tmp" builder
       
       | A.Add when same_float     -> L.build_fadd e1' e2' "tmp" builder
       | A.Sub when same_float     -> L.build_fsub e1' e2' "tmp" builder

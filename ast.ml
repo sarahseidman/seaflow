@@ -6,7 +6,7 @@ type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
 type uop = Neg
 
 type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Sbody of typ list | Func of typ list * typ
-  | Observable of typ
+  | Observable of typ | Bool
 
 (* type otyp = Observable of typ *)
 
@@ -15,6 +15,7 @@ type bind = typ * string
 
 type expr =
     Literal of int
+  | Bliteral of bool
   | Fliteral of string
   | Chliteral of char
   | Strliteral of string
@@ -130,6 +131,7 @@ let string_of_uop = function
 
 let rec string_of_expr = function
     Literal(l) -> string_of_int l
+  | Bliteral(b) -> if b then "TRUE" else "FALSE"
   | Fliteral(l) -> l
   | Chliteral(l) -> "'" ^ String.make 1 l ^ "'"
   | Aliteral(l) -> "[" ^ String.concat "," (List.map string_of_expr l) ^ "]"

@@ -5,6 +5,7 @@ open Ast
 type sexpr = typ * sx
 and sx =
     SLiteral of int
+  | SBliteral of bool
   | SFliteral of string
   | SChliteral of char
   | SAliteral of typ * sexpr list
@@ -88,6 +89,7 @@ type sprogram = sglob list
 let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
     SLiteral(l) -> string_of_int l
+  | SBliteral(b) -> if b then "TRUE" else "FALSE"
   | SFliteral(l) -> l
   | SChliteral(l) -> "'" ^ String.make 1 l ^ "'"
   | SAliteral(_, l) -> "[" ^ String.concat "," (List.map string_of_sexpr l) ^ "]"
