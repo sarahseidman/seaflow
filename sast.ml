@@ -5,6 +5,7 @@ open Ast
 type sexpr = typ * sx
 and sx =
     SLiteral of int
+  | SBliteral of bool
   | SFliteral of string
   | SChliteral of char
   | SAliteral of typ * sexpr list
@@ -16,7 +17,6 @@ and sx =
   | SBCall of string * sexpr list (* Built-in function call *)
   | SRef of string * string * string
   | SArr_Ref of sexpr * sexpr
-  | SIf of sexpr * sexpr * sexpr
   | SFuncExpr of bind list * typ * sstmt list
   | SSliteral of sexpr list
   | SLen of sexpr
@@ -29,6 +29,7 @@ sstmt =
     SBlock of sstmt list
   (* | Obs of string *)
   | SExpr of sexpr
+  | SIf of typ * string * sexpr * sexpr * sexpr
   | SReturn of sexpr
   | SPrint of sexpr
   | SDecl of typ * string * sexpr
@@ -64,6 +65,7 @@ type sobs_stmt =
   | SOArr_Decl of typ * string * sexpr list
   | SOStr_Decl of typ * string * sexpr list
   | SSubscribe of string * sexpr * soexpr
+  | SComplete of string * soexpr
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }
@@ -87,6 +89,7 @@ type sprogram = sglob list
 let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
     SLiteral(l) -> string_of_int l
+  | SBliteral(b) -> if b then "TRUE" else "FALSE"
   | SFliteral(l) -> l
   | SChliteral(l) -> "'" ^ String.make 1 l ^ "'"
   | SAliteral(_, l) -> "[" ^ String.concat "," (List.map string_of_sexpr l) ^ "]"
@@ -101,8 +104,8 @@ let rec string_of_sexpr (t, e) =
       s ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SArr_Ref(e1, e2) -> string_of_sexpr e1 ^ "[" ^ string_of_sexpr e2 ^ "]"
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2
-  | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
-      ^ string_of_sexpr e3
+  (* | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
+      ^ string_of_sexpr e3 *)
   | SFuncExpr(bind_list, _, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
@@ -154,6 +157,8 @@ let string_of_sobs_stmt = function
       String.concat ", " (List.map string_of_sexpr expr_list) ^ "};\n" 
   | SSubscribe(s, e, oe) ->
       s ^ "(" ^ string_of_sexpr e ^ ", " ^ string_of_soexpr oe ^ ");\n"
+  | SComplete(s, oe) ->
+      s ^ "(" ^ string_of_soexpr oe ^ ");\n"
       
 (* let string_of_sfdecl fdecl =
   string_of_typ fdecl.styp ^ " " ^

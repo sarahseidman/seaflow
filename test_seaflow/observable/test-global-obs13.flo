@@ -1,0 +1,12 @@
+void apple(float x) {
+    printf(x);
+    return;
+}
+
+int $a = 5;
+float $b = 5.0;
+
+float $c = $a * $b;
+subscribe(apple, $c);
+
+$a = 50;

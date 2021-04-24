@@ -53,6 +53,7 @@ glob_line:
   | fdecl    { Fdecl($1) }
   | stmt     { Stmt($1) }
   | obs_stmt { Obs_Stmt($1) }
+  /* | if_stmt  { If($1) } */
 
 
 
@@ -104,6 +105,12 @@ sdecl_list:
     typ ID SEMI                 { [($1,$2)] }
   | sdecl_list typ ID SEMI            { ($2,$3) :: $1 }
 
+/*if_stmt:
+  | IF LPAREN expr RPAREN stmt_list ELSE stmt_list    { If($3, $5, $7) }
+
+stmt_list:
+    /* nothing */  /*{ [] }
+  | stmt_list stmt { $2 :: $1 }*/
 
 stmt:
     expr SEMI                               { Expr $1               }
@@ -111,6 +118,7 @@ stmt:
 // vdecls
   | typ ID ASSIGN expr SEMI                  { Decl($1, $2, $4) }
   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Def($2, List.rev $4) }
+  | typ ID ASSIGN IF LPAREN expr RPAREN expr ELSE expr SEMI   { If($1, $2, $6, $8, $10) }
 
 
 obs_stmt:
@@ -125,6 +133,7 @@ obs_stmt:
   | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl(Observable($1), $2, List.rev $5) }
 
   | ID LPAREN expr COMMA obs_expr RPAREN SEMI      { Subscribe($1, $3, $5) }
+  | ID LPAREN obs_expr RPAREN SEMI            { Complete($1, $3) }
 
 
 expr_opt:
@@ -160,7 +169,6 @@ expr:
   | ID LPAREN args_opt RPAREN                 { Call(Id($1), $3) }
   | LPAREN expr RPAREN LPAREN args_opt RPAREN { Call($2, $5)     }
   | LPAREN expr RPAREN { $2                   }
-  | IF LPAREN expr RPAREN expr ELSE expr    { If($3, $5, $7) }
   | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { FuncExpr(List.rev $2, List.rev $6) }   /* anonymous function */
 
 obs_expr:

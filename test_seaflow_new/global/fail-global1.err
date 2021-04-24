@@ -1,0 +1,1 @@
+Fatal error: exception Failure("Cannot have global of type: void")

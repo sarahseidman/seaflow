@@ -1,0 +1,36 @@
+void testInt(int a, int b) {
+    printi(a + b);
+    printi(a - b);
+    printi(a * b);
+    printi(a / b);
+    int c = if(a == b) 1 else 0;
+    printi(c);
+    int d = if(a == a) 1 else 0;
+    printi(d);
+    int e = if(a != b) 1 else 0;
+    printi(e);
+    int f = if(a != a) 1 else 0;
+    printi(f);
+    int g = if(a > b) 1 else 0;
+    printi(g);
+    int h = if(a >= b) 1 else 0;
+    printi(h);
+    int i = if(a < b) 1 else 0;
+    printi(i);
+    int j = if(a <= b) 1 else 0;
+    printi(j);
+    int k = if (a && b) 1 else 0;
+    printi(k);
+    int l = if (a || b) 1 else 0;
+    printi(l);
+}
+
+void foo() {
+  int c = 42;
+  int d = 3;
+
+  testInt(c, d);
+  testInt(d, d);
+}
+
+foo();

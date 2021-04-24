@@ -177,7 +177,7 @@ then
     files=$@
 else
     # files="test_seaflow/*/test-*.flo test_seaflow/*/fail-*.flo"
-    files="test_seaflow/*/test-*.flo"
+    files="test_seaflow/curr_tests/test-*.flo test_seaflow/curr_tests/fail-*.flo"
 fi
 
 for file in $files

@@ -1,0 +1,18 @@
+int add(int a, int b) {
+  return a + b;
+}
+
+int foo() {
+  return 7;
+}
+
+int bar() {
+  return 8;
+}
+
+void baz() {
+  int a = add(foo(), bar());
+  printi(a);
+}
+
+baz();

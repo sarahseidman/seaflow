@@ -1,0 +1,2 @@
+test-int2...FAILED
+  ./seaflow.native failed on ./seaflow.native ./test_seaflow/curr_tests/test-int2.flo > test-int2.ll

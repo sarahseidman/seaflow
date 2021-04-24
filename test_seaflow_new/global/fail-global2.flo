@@ -1,0 +1,8 @@
+int b = 7;
+char c = 'd';
+int a = 12;
+int b = 2; /* Duplicate global variable */
+
+int foo() {
+  return 0;
+}

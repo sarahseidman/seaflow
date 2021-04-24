@@ -1,0 +1,7 @@
+int i = 7;
+int j = 12;
+int k = i + j;
+
+printi(i);
+printi(j);
+printi(k);

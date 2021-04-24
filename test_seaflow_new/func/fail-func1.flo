@@ -1,0 +1,12 @@
+void foo() {}
+
+int bar(int a, char b, int c) {
+  return a + c;
+}
+
+void baz()
+{
+  printi(bar(17, 'd', 25));
+}
+
+baz();
