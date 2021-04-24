@@ -165,7 +165,7 @@ expr:
 
   | MINUS expr       { Unop(Neg, $2)          }
   | LBRACE args_list RBRACE                   { Sliteral(List.rev $2)}
-  | ID LBRAKT expr RBRAKT                     { Arr_Ref($1, $3)  }
+  | expr LBRAKT expr RBRAKT                     { Arr_Ref($1, $3)  }
   | ID LPAREN args_opt RPAREN                 { Call(Id($1), $3) }
   | LPAREN expr RPAREN LPAREN args_opt RPAREN { Call($2, $5)     }
   | LPAREN expr RPAREN { $2                   }

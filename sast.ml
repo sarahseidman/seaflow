@@ -16,10 +16,10 @@ and sx =
   | SCall of sexpr * sexpr list
   | SBCall of string * sexpr list (* Built-in function call *)
   | SRef of string * string * string
-  | SArr_Ref of string * sexpr
+  | SArr_Ref of sexpr * sexpr
   | SFuncExpr of bind list * typ * sstmt list
   | SSliteral of sexpr list
-  | SLen of string
+  | SLen of sexpr
   | SNoexpr
   | SVoid
 
@@ -102,7 +102,7 @@ let rec string_of_sexpr (t, e) =
       string_of_sexpr ef ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SBCall(s, el) -> (* Built-in function call *)
       s ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
-  | SArr_Ref(s, e) -> s ^ "[" ^ string_of_sexpr e ^ "]"
+  | SArr_Ref(e1, e2) -> string_of_sexpr e1 ^ "[" ^ string_of_sexpr e2 ^ "]"
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2
   (* | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
       ^ string_of_sexpr e3 *)
@@ -110,7 +110,7 @@ let rec string_of_sexpr (t, e) =
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
   | SSliteral(e_list) -> "(sliteral: { " ^ String.concat ", " (List.map string_of_sexpr e_list) ^ " })"
-  | SLen(s) -> s ^ ".length"
+  | SLen(e) -> string_of_sexpr e ^ ".length"
   | SVoid -> ""
   | SNoexpr -> ""
         ) ^ ")"		
