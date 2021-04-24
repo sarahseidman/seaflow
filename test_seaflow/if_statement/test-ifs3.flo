@@ -1,12 +1,15 @@
-int foo() {
-    printi(1);
-    return 2;
+int foo(int i) {
+    return i + 3;
 }
-
-int bar() {
-    printi(0);
-    return 3;
+int bar(int j) {
+    return j + j;
 }
-
-int y = if (1 == 1) foo() else bar();
-printi(y);
+int baz(int i, int j) {
+  int a = if (1 == 1) foo(i) else bar(j);
+  printi(a);
+  return 0;
+}
+baz(7, 12);
+white_check_mark
+eyes
+raised_hands
