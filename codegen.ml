@@ -156,6 +156,9 @@ let translate (globs) =
   let subscribe_ftype = L.function_type void_t [| obv_pt; obv_pt |] in
   let subscribe_function = L.define_function "subscribe" subscribe_ftype the_module in
   StringHash.add global_vars "subscribe" subscribe_function;
+  let complete_ftype = L.function_type void_t [| obv_pt |] in 
+  let complete_function = L.define_function "complete" complete_ftype the_module in 
+  StringHash.add global_vars "complete" complete_function;
 
 
   let lookup vars n = try StringHash.find vars n
@@ -699,6 +702,10 @@ let translate (globs) =
     | SOOAssign(lt, s, oe) ->
       (* Maybe we should not allow this *)
       builder
+    | SComplete(_, oe) ->
+      let upstream = oexpr global_vars builder oe in
+      L.build_call (lookup global_vars "complete") [| upstream |] "" builder;
+      builder
     | SSubscribe(_, e, oe) ->
       (*
         1. Create new observable
@@ -830,7 +837,24 @@ let translate (globs) =
   in
 
 
+  let define_complete = 
+    (*
+    void complete(observable* upstream) {
+      upstream->__next = Null
+    }
+    *)
+    let complete_function = StringHash.find global_vars "complete" in 
+    let builder = L.builder_at_end context (L.entry_block complete_function) in 
+    L.set_value_name "upstream" (L.params complete_function).(0);
+    let up_local = L.build_alloca obv_pt "upstream" builder in
+    L.build_store (L.params complete_function).(0) up_local builder;
+    let upstream = L.build_load up_local "__ups" builder in
+    let next' = L.build_struct_gep upstream 4 "__subscription_pp" builder in  (* next' : subscription**  &(upstream->sub) *)
+    let new_sub = L.const_pointer_null subscription_pt in     (* new_sub : subscription*                    *)
+    L.build_store new_sub next' builder;
+    L.build_ret_void builder;
 
+  in
 
 
   let define_next = 
