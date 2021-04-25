@@ -1,0 +1,14 @@
+int apple(int x, int y) {
+    printi(x);
+    return x;
+}
+
+
+
+int $a = 5;
+int $b = 6;
+
+subscribe(apple, $a, $b);
+
+$a = 4;
+$a = 7;
