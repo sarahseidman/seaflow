@@ -536,7 +536,7 @@ let check (globs) =
     | OArr_Decl of typ * string * expr list
     | OStr_Decl of typ * string * expr list
     *)
-    | Subscribe(s, e, oe) ->
+    | Subscribe(e, oe) ->
       let (ft, e') = expr vars e in
       let (ot, oe') = oexpr vars oe in
 
@@ -553,14 +553,14 @@ let check (globs) =
         | [a] when a = it' -> ()
         | _ -> raise (Failure ("map function type does not match"))
       in
-      SSubscribe(s, (ft, e'), (ot, oe'))
-    | Complete(s, oe) ->
+      SSubscribe("subscribe", (ft, e'), (ot, oe'))
+    | Complete(oe) ->
       let (ot, oe') = oexpr vars oe in 
       let it' = match ot with
         | Observable x -> x
         | _ as x -> raise (Failure ("second arguement of map must be an observable"))
       in
-      SComplete(s, (ot, oe'))
+      SComplete("complete", (ot, oe'))
     | _ -> raise (Failure ("Not Implemented 1000"))
   in
 

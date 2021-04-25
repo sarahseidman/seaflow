@@ -70,8 +70,8 @@ type obs_stmt =
   | OOAssign of string * oexpr
   | OArr_Decl of typ * string * expr list
   | OStr_Decl of typ * string * expr list
-  | Subscribe of string * expr * oexpr
-  | Complete of string * oexpr
+  | Subscribe of expr * oexpr
+  | Complete of oexpr
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }
@@ -190,10 +190,10 @@ let string_of_obs_stmt = function
       String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
   | OStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
       String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
-  | Subscribe(s, e, oe) ->
-      s ^ "(" ^ string_of_expr e ^ ", " ^ string_of_oexpr oe ^ ");\n"
-  | Complete(s, oe) ->
-    s ^ "(" ^ string_of_oexpr oe ^ ");\n"
+  | Subscribe(e, oe) ->
+      "subscribe(" ^ string_of_expr e ^ ", " ^ string_of_oexpr oe ^ ");\n"
+  | Complete(oe) ->
+      "complete(" ^ string_of_oexpr oe ^ ");\n"
 
 
 let string_of_fdecl fdecl =
