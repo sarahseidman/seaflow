@@ -6,7 +6,7 @@ int bar(int a, char b, int c) {
   int d = 0;
   int d = 7;
   return 0;
-} /* Error: duplicate local a in bar */
+}
 
 int baz() {
   return 0;
