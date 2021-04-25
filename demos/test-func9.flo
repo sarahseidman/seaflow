@@ -16,8 +16,8 @@ struct Math {
 struct Math m = {4, 3.14, "times", (int x, float y)->{ return x * y; }}; /* Anonymous functions */
 struct Math d = {10, 3.5, "divided by", (int x, float y)->{ return x / y; }};
 
-void eval(struct Math x) {
-  prints(" ");
+void eval(struct Math x, char[] operation) {
+  prints("Performing " + operation);
   printi(x.a);
   prints(x.verb);
   printf(x.b);
@@ -26,5 +26,5 @@ void eval(struct Math x) {
   return;
 }
 
-eval(m);
-eval(d);
+eval(m, "multiplication");
+eval(d, "division");
