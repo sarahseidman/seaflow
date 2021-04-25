@@ -1,0 +1,6 @@
+int fib(int x) {
+  int y = if (x > 2) fib(x-1) + fib(x-2) else 1;
+  return y;
+}
+
+printi(fib(6));

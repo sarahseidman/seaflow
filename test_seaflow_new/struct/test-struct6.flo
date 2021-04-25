@@ -8,6 +8,7 @@ void bar(struct Foo f) {
     printi(f.i);
     printi(f.j);
     printc(f.c);
+    return f.i;
 }
 
 bar({4, 2, 'x'});
