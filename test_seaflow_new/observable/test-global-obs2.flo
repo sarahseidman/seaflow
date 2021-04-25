@@ -10,7 +10,4 @@ int $a = 5;
 subscribe(apple, $a);
 
 $a = 4;
-
-
-
 $a = 7;

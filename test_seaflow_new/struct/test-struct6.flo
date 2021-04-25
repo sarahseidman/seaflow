@@ -4,7 +4,7 @@ struct Foo {
     char c;
 };
 
-int bar(struct Foo f) {
+void bar(struct Foo f) {
     printi(f.i);
     printi(f.j);
     printc(f.c);
