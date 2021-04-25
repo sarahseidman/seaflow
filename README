@@ -8,7 +8,7 @@ Java and JavaScript. One popular solution among the developers is to use
 ReactiveX implementations in their respective languages to architect event-driven 
 reactive models. However, since Java and JavaScript are not designed for reactive 
 programming, it leads to complex implementations where multiple programming 
-styles are mixed-used. 
+styles are mixed-used.
 
 It needs the OCaml llvm library, which is most easily installed through opam.
 
@@ -18,15 +18,11 @@ and opam, then use opam to install llvm.
 The version of the OCaml llvm library must match the version of the LLVM
 system installed on your system.
 
-In addition to print, which calls the C library function printf(),
-microc gratuitiously includes a primitive function "printbig," which
-prints large ASCII-encoded characters.
-
-The stock C compiler compiles printbig.o.  testall.sh runs the microc
-executable on each testcase (.mc file) to produce a .ll file, invokes
+The stock C compiler compiles utils.o.  testall.sh runs the Seaflow
+executable on each testcase (.flo file) to produce a .ll file, invokes
 "llc" (the LLVM compiler) to produce a .s (assembly) file, then
 invokes "cc" (the stock C compiler) to assemble the .s file, link in
-printbig.o, and generate an executable.  See testall.sh for details.
+utils.o, and generate an executable.  See testall.sh for details.
 ----------
 If you get errors about llvm.analysis not being found, it's probably
 because opam enviroment information is missing.  Either run
@@ -57,23 +53,25 @@ Installation using Docker
 
   If this fails, you will need to correct your installation.
 
-* Move to where you unpacked the microc source:
+* Move to where you unpacked the Seaflow source:
 
-  cd microc
+  cd seaflow
 
 * Invoke docker
 
-  docker run --rm -it -v `pwd`:/home/microc -w=/home/microc columbiasedwards/plt
+  docker run --rm -it -v ${PWD}:/home/seaflow -w=/home/seaflow columbiasedwards/plt
 
-* Inside docker, compile MicroC and run the regression tests:
+* Inside docker, compile Seaflow and run the regression tests:
 
-  # make
+  # make test
   ...
-  test-add1...OK
-  test-arith1...OK
-  test-arith2...OK
-  test-arith3...OK
-  ... etc.
+   test-arr-concat...OK
+   test-arr1...OK
+   test-arr10...OK
+   test-arr11...OK
+   test-arr12...OK
+   test-arr13...OK
+  ... etc
 
   # make clean
 
@@ -229,12 +227,13 @@ Installation under OS X
    csrutil enable
    reboot
 
-9. To run and test, navigate to the MicroC folder. Once there, run
+9. To run and test, navigate to the Seaflow folder. Once there, run
 
    make ; ./testall.sh
 
-   MicroC should build without any complaints and all tests should
-   pass.
+   Seaflow should build without any complaints and all tests should
+   pass. However, error messages induced by failing tests may differ
+   depending on your machine.
 
    IF RUNNING ./testall.sh FAILS ON SOME TESTS, check to make sure you
    have symlinked the correct executable from your llvm installation.
@@ -249,15 +248,18 @@ Installation under OS X
 To run and test:
 
 $ make
-ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 microc.native
+ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 seaflow.native
 Finished, 22 targets (0 cached) in 00:00:01.
-cc    -c -o printbig.o printbig.c
+cc    -c -o utils.o utils.c
 $ ./testall.sh
-test-arith1...OK
-test-arith2...OK
-test-arith3...OK
-test-fib...OK
+test-arr-concat...OK
+test-arr1...OK
+test-arr10...OK
+test-arr11...OK
+test-arr12...OK
 ...
-fail-while1...OK
-fail-while2...OK
+fail-arr1...OK
+fail-arr2...OK
+fail-arr3...OK
+fail-char1...OK
 

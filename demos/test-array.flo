@@ -1,6 +1,8 @@
 int[] a = [1,2,3,4];
+int[] b = [45,67,89];
+int[] concat = a + b;
 
-printi(a.length);
+printi(concat.length);
 
 printi(a[a.length - 1]);
 
@@ -9,6 +11,7 @@ printc(['a','b','c'][0]);
 float[] f = [4.5, 6.7, 8.9];
 printf(f[a[0]]);
 
-char[] hi = "hello world!";
-/* string literals are null terminated */
-printc( hi[hi.length - 1] );
+char[] one = "hello ";
+char[] two = "world!";
+char[] msg = one + two;
+prints(msg);

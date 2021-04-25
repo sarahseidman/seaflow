@@ -41,6 +41,7 @@ let check (globs) =
   let _ = StringHash.add global_vars "printi" (Func([Int], Void)) in
   let _ = StringHash.add global_vars "printf" (Func([Float], Float)) in
   let _ = StringHash.add global_vars "printc" (Func([Char], Char)) in
+  let _ = StringHash.add global_vars "prints" (Func([Arr(Char)], Void)) in
 
   (*
   let built_in_decls = 
@@ -111,7 +112,7 @@ let check (globs) =
       let split =
         let rec exp i l =
           if i < 2 then l else exp (i - 1) (Chliteral(s.[i]) :: l) in
-        exp (String.length s - 3) [Chliteral(Char.chr 0)]
+        exp (String.length s - 3) []
       in
       let e = List.map (expr vars) split in
       (Arr(ty), SAliteral(ty, e))
@@ -229,6 +230,7 @@ let check (globs) =
         (match f' with
           | SId(x) when x = "printi"
             || x = "printc"
+            || x = "prints"
             || x = "printf" -> (rtype, SBCall(x, args'))
           | _ as x                   -> (rtype, SCall((t', x), args')))
     | FuncExpr(params, stmts) ->

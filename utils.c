@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 
 void array_concat_int(void **f, void **s, void **d)
 {
@@ -66,4 +68,14 @@ void array_concat_char(void **f, void **s, void **d)
     *dest = *src;
   }
   
+}
+
+void print_string(void **s) {
+  int len = **(int **)s;
+
+  for(int i = 1; i < len; i++){
+    char **curr = (char **) s + i;
+    printf("%c", **curr);
+  }
+  printf("\n");
 }

@@ -1,6 +1,6 @@
-float $relative_humidity = 10.0;
+float $relative_humidity = 70.0;
 float $temperature       = 20.0;
-char  $temp_type         = 'c';
+char  $temp_type         = 'c';    /* celcius */
 
 float fahrenheit_converter (float temp, char type) {
     float adjusted = if (type == 'c') temp else (temp - 32) / 1.8;
@@ -16,3 +16,9 @@ float $t = combine(fahrenheit_converter, $temperature, $temp_type);
 subscribe(print, $t - (100 - $relative_humidity) / 5);
 
 
+
+$relative_humidity = 60.0;
+$relative_humidity = 50.0;
+
+$temperature = 70.0;
+$temp_type = 'f';           /* fahrenheit */

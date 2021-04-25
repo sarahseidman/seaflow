@@ -3,4 +3,4 @@ printc(c[0]);
 printc(c[1]);
 
 /* strings are null terminated */
-printc(c[c.length - 2]);
+printc(c[c.length - 1]);

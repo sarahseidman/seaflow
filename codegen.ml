@@ -100,6 +100,13 @@ let translate (globs) =
   let printf_func : L.llvalue =
     L.declare_function "printf" printf_t the_module in (* L.declare_function returns the function if it already exits in the module *)
 
+  let print_string_t : L.lltype =
+    L.function_type (L.pointer_type void_ptr_t) 
+        [| L.pointer_type void_ptr_t |] in
+  let print_string_func : L.llvalue =
+      L.declare_function "print_string" print_string_t the_module in
+  
+
   let array_concat_t : L.lltype =
     L.function_type (L.pointer_type void_ptr_t) 
         [| L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t |] in
@@ -158,7 +165,6 @@ let translate (globs) =
   let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
   let float_format_str builder = L.build_global_stringptr "%f\n" "fmt" builder in
   let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in
-  (* let str_format_str builder = L.build_global_stringptr "%s\n" "fmt" builder in *)
 
 
   let next_ftype = L.function_type void_t [| obv_pt |] in
@@ -345,6 +351,9 @@ let translate (globs) =
         L.build_call printf_func [| float_format_str builder; (expr vars builder e) |]
           "printf" builder
     (* | SCall(n, args) -> print_endline n ; L.const_int i32_t 5 *)
+    | SBCall("prints", [e]) ->
+        L.build_call print_string_func [| (expr vars builder e) |]
+          "prints" builder
     | SCall(f, args) ->
       let fdef = expr vars builder f in
 
