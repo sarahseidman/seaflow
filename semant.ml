@@ -201,7 +201,7 @@ let check (globs) =
             | Less | Leq | Greater | Geq
                       when same && (t1 = Int || t1 = Float || t1 = Char) -> Bool
             | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
-            | Add when (typ_of_arr t1) = (typ_of_arr t2) -> Arr(t1)
+            | Add when (typ_of_arr t1) = (typ_of_arr t2) -> t1
             | _ -> raise (Failure ("illegal binary operator "  ^
                                     string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                                     string_of_typ t2 ^ " in " ^ string_of_expr e))
