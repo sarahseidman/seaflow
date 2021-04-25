@@ -95,17 +95,57 @@ let translate (globs) =
     obv_pt            (* pointer to observable *)
   |] false);
 
-  let printf_t : L.lltype =
-    L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
-  let printf_func : L.llvalue =
-    L.declare_function "printf" printf_t the_module in (* L.declare_function returns the function if it already exits in the module *)
 
+  let main_ftype = L.function_type i32_t [| |] in
+  let main_function = L.define_function "main" main_ftype the_module in
+
+  let global_builder = L.builder_at_end context (L.entry_block main_function) in
+
+
+
+  let printi_t : L.lltype =
+    L.function_type i32_t [| i32_t |] in
+  (* let printf_func : L.llvalue =
+    L.declare_function "printf" printf_t the_module in L.declare_function returns the function if it already exits in the module *)
+  let printf_t : L.lltype =
+    L.function_type i32_t [| float_t |] in 
+  let printc_t : L.lltype =
+    L.function_type i32_t [| i8_t |] in
   let print_string_t : L.lltype =
-    L.function_type (L.pointer_type void_ptr_t) 
-        [| L.pointer_type void_ptr_t |] in
-  let print_string_func : L.llvalue =
-      L.declare_function "print_string" print_string_t the_module in
-  
+    L.function_type (L.pointer_type void_ptr_t) [| L.pointer_type void_ptr_t |] in
+
+  let _ : L.llvalue =
+    let f = L.declare_function "print_int" printi_t the_module in
+    let store = L.define_global "printi" (L.const_null (L.pointer_type printi_t)) the_module in
+    ignore(L.build_store f store global_builder);
+    ignore(StringHash.add global_vars "printi" store);
+    f
+  in
+
+  let _ : L.llvalue =
+    let f = L.declare_function "print_char" printc_t the_module in
+    let store = L.define_global "printc" (L.const_null (L.pointer_type printc_t)) the_module in
+    ignore(L.build_store f store global_builder);
+    ignore(StringHash.add global_vars "printc" store);
+    f
+  in
+
+  let _ : L.llvalue =
+    let f = L.declare_function "print_float" printf_t the_module in
+    let store = L.define_global "printd" (L.const_null (L.pointer_type printf_t)) the_module in
+    ignore(L.build_store f store global_builder);
+    ignore(StringHash.add global_vars "printf" store);
+    f
+  in
+
+  let _ : L.llvalue =
+      let f = L.declare_function "print_string" print_string_t the_module in
+      let store = L.define_global "prints" (L.const_null (L.pointer_type print_string_t)) the_module in
+      ignore(L.build_store f store global_builder);
+      ignore(StringHash.add global_vars "prints" store);
+      f
+  in
+
 
   let array_concat_t : L.lltype =
     L.function_type (L.pointer_type void_ptr_t) 
@@ -115,11 +155,6 @@ let translate (globs) =
   let array_concat_char_func : L.llvalue =
     L.declare_function "array_concat_char" array_concat_t the_module in
 
-
-  let main_ftype = L.function_type i32_t [| |] in
-  let main_function = L.define_function "main" main_ftype the_module in
-
-  let global_builder = L.builder_at_end context (L.entry_block main_function) in
 
 
   let get_base (t: A.typ) = match t with
@@ -162,9 +197,9 @@ let translate (globs) =
       Some _ -> ()
     | None -> ignore (instr builder) in
 
-  let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
+  (* let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
   let float_format_str builder = L.build_global_stringptr "%f\n" "fmt" builder in
-  let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in
+  let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in *)
 
 
   let next_ftype = L.function_type void_t [| obv_pt |] in
@@ -245,7 +280,6 @@ let translate (globs) =
         ignore(List.fold_left add_store 0 elems) ;
         L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
     | SArr_Ref(e1, e2) ->
-      (* how to check for out of bounds index? *)
       let ty = arr_ty_of_expr e1 in
       let arr = expr vars builder e1 in
       let idx = expr vars builder e2 in 
@@ -341,7 +375,7 @@ let translate (globs) =
       (match op with
         A.Neg when t = A.Float -> L.build_fneg
       | A.Neg                  -> L.build_neg) e' "tmp" builder
-    | SBCall("printi", [e]) ->
+    (* | SBCall("printi", [e]) ->
         L.build_call printf_func [| int_format_str builder; (expr vars builder e) |]
           "printf" builder
     | SBCall("printc", [e]) ->
@@ -349,11 +383,11 @@ let translate (globs) =
           "printf" builder
     | SBCall("printf", [e]) ->
         L.build_call printf_func [| float_format_str builder; (expr vars builder e) |]
-          "printf" builder
+          "printf" builder *)
     (* | SCall(n, args) -> print_endline n ; L.const_int i32_t 5 *)
-    | SBCall("prints", [e]) ->
+    (* | SBCall("prints", [e]) ->
         L.build_call print_string_func [| (expr vars builder e) |]
-          "prints" builder
+          "prints" builder *)
     | SCall(f, args) ->
       let fdef = expr vars builder f in
 

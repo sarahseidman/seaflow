@@ -7,13 +7,10 @@ float fahrenheit_converter (float temp, char type) {
     return adjusted;
 }
 
-void print (float num) {
-    printf(num);
-    return;
-}
+
 float $t = combine(fahrenheit_converter, $temperature, $temp_type);
 
-subscribe(print, $t - (100 - $relative_humidity) / 5);
+subscribe(printf, $t - (100 - $relative_humidity) / 5);
 
 
 

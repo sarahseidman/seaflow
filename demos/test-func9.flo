@@ -1,0 +1,15 @@
+int fib(int x) {
+  int y = if (x > 2) fib(x-1) + fib(x-2) else 1;
+  return y;
+}
+
+struct Fibonacci {
+  int num;
+  int fib_num;
+  char[] name;
+};
+
+struct Fibonacci f = { 6, fib(6), "Junyang" };
+
+prints(f.name + "'s number is: ");
+printi(f.fib_num);

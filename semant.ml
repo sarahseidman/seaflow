@@ -38,9 +38,9 @@ let get_observable_inner_type (ot: typ) : typ = match ot with
 
 let check (globs) =
 
-  let _ = StringHash.add global_vars "printi" (Func([Int], Void)) in
-  let _ = StringHash.add global_vars "printf" (Func([Float], Float)) in
-  let _ = StringHash.add global_vars "printc" (Func([Char], Char)) in
+  let _ = StringHash.add global_vars "printi" (Func([Int], Int)) in
+  let _ = StringHash.add global_vars "printf" (Func([Float], Int)) in
+  let _ = StringHash.add global_vars "printc" (Func([Char], Int)) in
   let _ = StringHash.add global_vars "prints" (Func([Arr(Char)], Void)) in
 
   (*
@@ -228,10 +228,7 @@ let check (globs) =
         in 
         let args' = List.map2 check_call formals args in
         (match f' with
-          | SId(x) when x = "printi"
-            || x = "printc"
-            || x = "prints"
-            || x = "printf" -> (rtype, SBCall(x, args'))
+          | SId(x) when x = "???" -> (rtype, SBCall(x, args'))
           | _ as x                   -> (rtype, SCall((t', x), args')))
     | FuncExpr(params, stmts) ->
         let (ftype, rtype, sstmts) = check_func_decl vars (params, stmts) in
