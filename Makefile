@@ -30,6 +30,7 @@ clean :
 	rm -f *.cmi
 	rm -f seaflowparse.ml
 	rm -f seaflowparse.mli
+	rm -f seaflowparse.output
 	rm -f *.o
 	
 # Building the array concatenation util

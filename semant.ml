@@ -2,7 +2,6 @@
 
 open Ast
 open Sast
-open Utils
 
 module StringMap = Map.Make(String)
 
@@ -320,7 +319,12 @@ let check (globs) =
 
     let check_empty = match sbody with
       | [] -> raise (Failure ("a function cannot have an empty body"))
-      | _ -> list_last sbody
+      | _ ->
+        let rec list_last list = match list with 
+          | [] -> failwith "List is empty"
+          | [x] -> x
+          | _::rest_of_list -> list_last rest_of_list
+        in list_last sbody
     in
 
     let rtype = match check_empty with

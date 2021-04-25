@@ -1,8 +1,14 @@
-The MicroC compiler
+The Seaflow compiler
 
-Coded in OCaml, this takes a highly stripped-down subset of C (ints,
-bools, and void types, arithmetic, if-else, for, and while statements,
-and user-defined functions) and compiles it into LLVM IR.
+Seaflow is an imperative language designed to address the asynchronous event 
+conundrum by supporting some of the core principles of ReactiveX and reactive 
+programming natively. Modern applications handle many asynchronous events, but 
+it is difficult to model such applications using programming languages such as 
+Java and JavaScript. One popular solution among the developers is to use 
+ReactiveX implementations in their respective languages to architect event-driven 
+reactive models. However, since Java and JavaScript are not designed for reactive 
+programming, it leads to complex implementations where multiple programming 
+styles are mixed-used. 
 
 It needs the OCaml llvm library, which is most easily installed through opam.
 
