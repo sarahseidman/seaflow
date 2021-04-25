@@ -180,6 +180,7 @@ let check (globs) =
         (* All binary operators require operands of the same type *)
         let same = t1 = t2 in
         (* Determine expression type based on operator and operand types *)
+
         (match op with
           | And | Or ->
             let (_t1, _e1') = match t1 with
@@ -200,6 +201,7 @@ let check (globs) =
             | Less | Leq | Greater | Geq
                       when same && (t1 = Int || t1 = Float || t1 = Char) -> Bool
             | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
+            | Add when (typ_of_arr t1) = (typ_of_arr t2) -> Arr(t1)
             | _ -> raise (Failure ("illegal binary operator "  ^
                                     string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                                     string_of_typ t2 ^ " in " ^ string_of_expr e))
