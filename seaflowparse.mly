@@ -4,7 +4,7 @@
 open Ast
 %}
 
-%token MAP COMBINE
+%token MAP COMBINE SUBSCRIBE COMPLETE
 %token SEMI LPAREN RPAREN LBRACE RBRACE LBRAKT RBRAKT COMMA PLUS MINUS TIMES DIVIDE ASSIGN ARROW DOT
 %token EQ NEQ LT LEQ GT GEQ AND OR
 %token RETURN IF ELSE INT FLOAT VOID CHAR STRUCT NULL
@@ -20,6 +20,7 @@ open Ast
 %nonassoc NOELSE
 %nonassoc ELSE
 %right ASSIGN
+%left LBRAKT
 %left OR
 %left AND
 %left EQ NEQ
@@ -129,11 +130,11 @@ obs_stmt:
   | typ OBS SEMI                              { Obs(Observable($1), $2) }
   | typ OBS ASSIGN expr SEMI                  { ODecl(Observable($1), $2, $4) }
   | typ OBS ASSIGN obs_expr SEMI              { OODecl(Observable($1), $2, $4) }
-  | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { OStr_Decl(Observable($1), $2, List.rev $5) }
-  | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl(Observable($1), $2, List.rev $5) }
+  // | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { OStr_Decl(Observable($1), $2, List.rev $5) }
+  // | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl(Observable($1), $2, List.rev $5) }
 
-  | ID LPAREN expr COMMA obs_expr RPAREN SEMI      { Subscribe($1, $3, $5) }
-  | ID LPAREN obs_expr RPAREN SEMI            { Complete($1, $3) }
+  | SUBSCRIBE LPAREN expr COMMA obs_expr RPAREN SEMI { Subscribe($3, $5) }
+  | COMPLETE  LPAREN obs_expr RPAREN SEMI            { Complete($3) }
 
 
 expr_opt:
@@ -142,7 +143,7 @@ expr_opt:
 
 expr:
     LITERAL          { Literal($1)            }
-  | NULL             { Void                    }
+  // | NULL             { Void                    }
   | FLIT             { Fliteral($1)           }
   | CHLIT            { Chliteral($1)          }
   | STRLIT           { Strliteral($1)         }

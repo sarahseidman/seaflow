@@ -44,8 +44,10 @@ rule token = parse
 | "char"   { CHAR }
 | "void"   { VOID }
 | "struct" { STRUCT }
-| "map"    { MAP }
-| "combine" { COMBINE }
+| "map"       { MAP }
+| "combine"   { COMBINE }
+| "subscribe" { SUBSCRIBE }
+| "complete"  { COMPLETE }
 | charlit as lxm { CHLIT(lxm.[1])}
 | strlit as lxm { STRLIT (String.escaped lxm)}
 | digits as lxm { LITERAL(int_of_string lxm) }
