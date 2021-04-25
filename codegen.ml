@@ -372,19 +372,34 @@ let translate (globs) =
 
     let local_vars = StringHash.create 10 in
 
-    let add_formal (t, n) p =
+
+    let _add_store (t, n) = (* Returns a point to local store *)
       let _ = match StringHash.find_opt local_vars n with
         | Some(_) -> raise (Failure "Cannot have duplicate formal!")
         | None -> ()
       in
+      let _store = L.build_alloca (ltype_of_typ t) n local_builder in
+      let a = match t with
+        | A.Arr(x) -> StringHash.add arr_types n x
+        | _ -> ()
+      in
+      StringHash.add local_vars n _store ;
+      _store
+    in
+
+    let _fill_store v store = (* fills store *)
+      ignore (L.build_store v store local_builder); ()
+    in
+
+    let add_formal (t, n) p =
+      let local_store = _add_store (t, n) in
       L.set_value_name n p;
-      let local = L.build_alloca (ltype_of_typ t) n local_builder in
-      ignore (L.build_store p local local_builder);
+      _fill_store p local_store;
       let a = match t with
         | A.Arr(x) -> StringHash.add arr_types n x
         | _ -> ()
       in 
-      StringHash.add local_vars n local ;
+      ()
     in
 
     let add_local_arr n p ltyp = 
@@ -401,8 +416,11 @@ let translate (globs) =
     let rec build_local_stmt builder = function
         SExpr e -> ignore(expr local_vars builder e); builder
       | SBlock(stmt_list) -> List.fold_left build_local_stmt builder stmt_list
-      | SDecl(t, s, e) -> let e' = expr local_vars builder e in
-          ignore(add_formal (t, s) e'); builder
+      | SDecl(t, s, e) ->
+        let local_store = _add_store (t, s) in
+        let e' = expr local_vars builder e in
+        _fill_store e' local_store;
+        builder
       | SReturn e -> ignore(match rt with
                 (* Special "return nothing" instr *)
                 A.Void -> L.build_ret_void builder
@@ -638,12 +656,38 @@ let translate (globs) =
   in
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
-    | SDecl(t, s, e) -> let e' = expr global_vars builder e in
+    | SDecl(t, s, e) ->
+        let _ = match StringHash.find_opt global_vars s with
+          | Some(_) -> raise (Failure "Cannot declare global more than once!")
+          | None -> ()
+        in
+
+        (* print_endline ("e': " ^ (L.string_of_lltype (L.type_of e')));  *)
+
+        (* print_endline ("e': " ^ ()) *)
+        let init t' = match t' with
+            A.Float -> L.const_float float_t 0.0
+          | A.Int   -> L.const_int i32_t 0
+          | A.Bool  -> L.const_int i1_t 0
+          | A.Char  -> L.const_int i8_t 0
+          | A.Arr(ti) -> L.const_null (L.pointer_type void_ptr_t)
+          | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
+          | A.Struct(_) as s -> L.const_pointer_null (ltype_of_typ s)
+          | _ as x -> raise (Failure ("Cannot have global of type: " ^ A.string_of_typ x))
+        in
+        let store = L.define_global s (init t) the_module in
+        StringHash.add global_vars s store;
+        let e' = expr global_vars builder e in
+
+        (* print_endline ("stored " ^ s ^ " to global"); *)
+      
         let _ = match t with
           | A.Arr(x) -> StringHash.add arr_types s x
           | _ -> ()
         in 
-        let _ = add_global_var (t, s, e', builder) in builder
+        L.build_store e' store builder;
+        builder
+        (* let _ = add_global_var (t, s, e', builder) in builder *)
     | SStr_Def(s, b_list) ->
         let tlist = List.map fst b_list in
         let flist = List.map snd b_list in

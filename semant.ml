@@ -247,10 +247,11 @@ let check (globs) =
       | Some(_) -> raise (Failure "variable has already been assigned!")
       | None -> ()
       in
+      StringHash.add vars var lt ;
+
       let (rt, e') = expr vars e in
       let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^ 
         string_of_typ rt ^ " in " ^ string_of_stmt ex in
-      StringHash.add vars var lt ;
       ignore(check_assign lt rt err) ; SDecl(lt, var, (rt, e'))
     | Return e -> let (t, e') = expr vars e in SReturn (t, e') 
       (* if t = func.typ then SReturn (t, e') 
@@ -533,9 +534,12 @@ let check (globs) =
 
 
   let fdecl_to_assign_stmt vars func =
+
+    let func_type = Func((List.map fst func.formals), func.typ) in
+    StringHash.add vars func.fname func_type;
+
     let (func_type, rtype, sstmt) = check_func_decl vars (func.formals, func.body) in
 
-    StringHash.add vars func.fname func_type;
     SDecl(func_type, func.fname, (func_type, SFuncExpr(func.formals, rtype, sstmt)))
   in
 

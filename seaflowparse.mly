@@ -20,13 +20,13 @@ open Ast
 %nonassoc NOELSE
 %nonassoc ELSE
 %right ASSIGN
-%left LBRAKT
 %left OR
 %left AND
 %left EQ NEQ
 %left LT GT LEQ GEQ
 %left PLUS MINUS
 %left TIMES DIVIDE
+%left LBRAKT
 %left DOT
 
 %%
