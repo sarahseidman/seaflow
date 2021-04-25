@@ -1,8 +1,9 @@
-float foo(float[] a, int i) {
+char foo(char[] a, int i) {
     return a[i];
 }
 
-float[] b = [1.0, 3.4, 2.1];
+char[] b = ['a', 'b', 'c'];
 
-printf(foo(b, 0));
-printf(foo(b, 1));
+printc(foo(b, 0));
+printc(foo(b, 1));
+printc(foo(b, 2));

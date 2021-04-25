@@ -1,9 +1,12 @@
-(int)->(int) increment = (int y) -> {
-        return y * 100;
-};
-(int)->(int) increment2 = (int y) -> {
-        return y * 1000;
-};
-(int)->(int)[] arr = [increment, increment2];
-int x = (arr[0])(1);
-printi(x);
+int foo() {
+    return 0;
+}
+
+int bar() {
+    return 2;
+}
+
+int[] a = [1, 2, 3, 5];
+
+printi(a[foo()]);
+printi(a[bar()]);
