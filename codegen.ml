@@ -97,6 +97,12 @@ let translate (globs) =
   let printf_func : L.llvalue =
     L.declare_function "printf" printf_t the_module in (* L.declare_function returns the function if it already exits in the module *)
 
+  let array_concat_t : L.lltype =
+    L.function_type (L.pointer_type void_ptr_t) 
+        [| L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t |] in
+  let array_concat_func : L.llvalue =
+      L.declare_function "array_concat" array_concat_t the_module in
+
 
   let main_ftype = L.function_type i32_t [| |] in
   let main_function = L.define_function "main" main_ftype the_module in
@@ -168,82 +174,6 @@ let translate (globs) =
     | (_, SAliteral(t, a)) -> ltype_of_typ t
   in
 
-  (*
-      int[] a = [1,2,3];
-      int[] b = [1,2,3];
-      int[] c = []; // but of len 6
-      int cidx = 0;
-
-      int i = 0;
-      while (i < a.length){
-          int tmp = a[i];
-          c[cidx] = tmp
-          cidx++;
-          i++;
-      }
-      i = 0;
-      while (i < b.length){
-          int tmp = b[i];
-          c[cidx] = tmp
-          cidx++;
-          i++;
-      }
-  
-  *)
-
-  let arr_concat a1 a2 ty builder = 
-    (* initialization of idx var - source *)
-    let init_idx = L.const_int i32_t 1 in 
-    let idxp = L.build_alloca (L.type_of init_idx) "idx" builder in
-    let s = L.build_store init_idx idxp builder in
-    let src_idx = L.build_load s "idx" builder in
-
-    (* initialization of idx var - dest *)
-    let init_idx = L.const_int i32_t 1 in 
-    let idxp = L.build_alloca (L.type_of init_idx) "idx" builder in
-    let s = L.build_store init_idx idxp builder in
-    let dest_idx = L.build_load s "idx" builder in
-    
-    (* get length of 1st array *)
-    let flen = get_array_len a1 builder in
-
-    (* get length of second array *)
-    let slen = get_array_len a2 builder in
-
-    let dest_len = L.build_add flen slen "sum" builder in
-    let size = L.build_add dest_len (L.const_int i32_t 1) "size" builder in
-
-    (* create destination array *)
-    let ptr = L.build_array_alloca void_ptr_t size "a" builder in
-
-    (* main_function should be replaced - this should be a builtin function like onNext? *)
-    let pred_bb = L.append_block context "while" main_function in
-    ignore(L.build_br pred_bb builder);
-
-    let body_bb = L.append_block context "while_body" main_function in
-    let body_builder = L.builder_at_end context body_bb in
-
-    (* loop body *)
-
-    (* int tmp = a[i]; *)
-
-
-    (* c[cidx] = tmp *)
-    (* cidx++; *)
-    (* i++; *)
-
-
-    (* add_terminal (stmt (L.builder_at_end context body_bb) body) *)
-    (L.build_br pred_bb);
-
-    let pred_builder = L.builder_at_end context pred_bb in 
-    let bool_val = L.build_icmp L.Icmp.Slt src_idx dest_len "comp" pred_builder in
-
-    let merge_bb = L.append_block context "merge" main_function in
-    ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
-    L.builder_at_end context merge_bb ; ptr
-  in
-
   let rec expr vars builder ((tt, e) : sexpr) = match e with
       SLiteral i   -> L.const_int i32_t i
     | SChliteral c -> L.const_int i8_t (Char.code c)
@@ -299,7 +229,20 @@ let translate (globs) =
       build_function (params, rt, sstmts)
     | SBinop ((A.Arr(_),_ ) as e1, op, e2) -> 
         let elem_ty = arr_ty_of_expr e1 in
-        arr_concat (expr vars builder e1) (expr vars builder e2) elem_ty builder
+        let arr = expr vars builder e1 in
+        let arr2 = expr vars builder e2 in
+        let ptr = L.build_gep arr [| L.const_int i32_t 0 |] "ptr" builder in
+        let ptr2 = L.build_gep arr2 [| L.const_int i32_t 0 |] "ptr" builder in
+
+        let len1 = get_array_len arr builder in
+        let len2 = get_array_len arr2 builder in
+        let total_len = L.build_add len1 len2 "sum" builder in
+        let make_len = L.build_add total_len (L.const_int i32_t 1) "sum2" builder in
+
+        let ptr3 = L.build_array_alloca void_ptr_t make_len "a" builder in
+        ignore(add_store_arr ptr3 builder 0 total_len) ; 
+
+        L.build_call array_concat_func [| ptr ; ptr2 ; ptr3 |] "array_concat" builder ; ptr3
     | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in

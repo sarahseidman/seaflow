@@ -4,11 +4,10 @@
 test : all testall.sh
 	./testall.sh
 
-# "make all" builds the executable as well as the "printbig" library designed
-# to test linking external code
+# "make all" builds the executable as well as the "utils" library for array concatenation
 
 .PHONY : all
-all : seaflow.native printbig.o
+all : seaflow.native utils.o
 
 # "make seaflow.native" compiles the compiler
 #
@@ -31,6 +30,7 @@ clean :
 	rm -f *.cmi
 	rm -f seaflowparse.ml
 	rm -f seaflowparse.mli
+	rm -f *.o
 
 .PHONY : intermediate
 intermediate :
@@ -46,10 +46,10 @@ intermediate :
 	ocamlc -o seaflow seaflowparse.cmo scanner.cmo seaflow.cmo sast.cmo semant.cmo
 
 	
-# Testing the "printbig" example
+# Building the array concatenation util
 
-printbig : printbig.c
-	cc -o printbig -DBUILD_TEST printbig.c
+utils : utils.c
+	cc -o utils utils.c
 
 # Building the tarball
 
@@ -64,7 +64,7 @@ TESTFILES = $(TESTS:%=test-%.flo) $(TESTS:%=test-%.out) \
 
 TARFILES = ast.ml sast.ml codegen.ml Makefile _tags seaflow.ml seaflowparse.mly \
 	scanner.mll semant.ml testall.sh \
-	printbig.c arcade-font.pbm font2c \
+	utils.c arcade-font.pbm font2c \
 	Dockerfile \
 	$(TESTFILES:%=test_seaflow/%) 
 
