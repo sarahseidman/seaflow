@@ -102,8 +102,10 @@ let translate (globs) =
   let array_concat_t : L.lltype =
     L.function_type (L.pointer_type void_ptr_t) 
         [| L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t |] in
-  let array_concat_func : L.llvalue =
-      L.declare_function "array_concat" array_concat_t the_module in
+  let array_concat_int_func : L.llvalue =
+      L.declare_function "array_concat_int" array_concat_t the_module in
+  let array_concat_char_func : L.llvalue =
+    L.declare_function "array_concat_char" array_concat_t the_module in
 
 
   let main_ftype = L.function_type i32_t [| |] in
@@ -261,9 +263,14 @@ let translate (globs) =
         let make_len = L.build_add total_len (L.const_int i32_t 1) "sum2" builder in
 
         let ptr3 = L.build_array_alloca void_ptr_t make_len "a" builder in
-        ignore(add_store_arr ptr3 builder 0 total_len) ; 
+        ignore(add_store_arr ptr3 builder 0 total_len) ;
 
-        L.build_call array_concat_func [| ptr ; ptr2 ; ptr3 |] "array_concat" builder ; ptr3
+        let _ = match (A.typ_of_arr (fst e1)) with
+          | A.Int -> ignore(L.build_call array_concat_int_func [| ptr ; ptr2 ; ptr3 |] "array_concat" builder)
+          | A.Char -> ignore(L.build_call array_concat_char_func [| ptr ; ptr2 ; ptr3 |] "array_concat" builder)
+          | _ -> raise (Failure ("concatenation of this type not supported"))
+         in ptr3
+
       | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in
