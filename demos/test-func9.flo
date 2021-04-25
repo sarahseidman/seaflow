@@ -3,13 +3,28 @@ int fib(int x) {
   return y;
 }
 
-struct Fibonacci {
-  int num;
-  int fib_num;
-  char[] name;
+prints("6th fibonacci number:");
+printi(fib(6));
+
+struct Math {
+  int a;
+  float b;
+  char[] verb;
+  (int, float)->(float) op;
 };
 
-struct Fibonacci f = { 6, fib(6), "Junyang" };
+struct Math m = {4, 3.14, "times", (int x, float y)->{ return x * y; }}; /* Anonymous functions */
+struct Math d = {10, 3.5, "divided by", (int x, float y)->{ return x / y; }};
 
-prints(f.name + "'s number is: ");
-printi(f.fib_num);
+void eval(struct Math x) {
+  prints(" ");
+  printi(x.a);
+  prints(x.verb);
+  printf(x.b);
+  prints("equals");
+  printf((x.op)(x.a, x.b));
+  return;
+}
+
+eval(m);
+eval(d);
