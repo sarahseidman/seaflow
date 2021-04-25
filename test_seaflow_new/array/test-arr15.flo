@@ -1,0 +1,9 @@
+int foo(int[] a, int i) {
+    return a[i];
+}
+
+int[] b = [5, 6, 7];
+
+printi(foo(b, 0));
+printi(foo(b, 1));
+printi(foo(b, 2));

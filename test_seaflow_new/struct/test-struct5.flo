@@ -1,0 +1,17 @@
+struct Point {
+    int x;
+    int y;
+};
+
+struct Point2 {
+    int z;
+    int q;
+};
+
+int foo(struct Point p) {
+    return p.x;
+}
+
+struct Point2 z = {3,4};
+int x = foo(z);
+printi(x);

@@ -2,7 +2,6 @@
 
 open Ast
 open Sast
-open Printf
 open Utils
 
 module StringMap = Map.Make(String)
@@ -24,7 +23,7 @@ let struct_by_body = StringHash.create 10
    Check each global variable, then check each function *)
 
 
-let match_struct_element_name name (t, element) =
+let match_struct_element_name name (_, element) =
   if name = element then true else false
 
 
@@ -39,11 +38,6 @@ let get_observable_inner_type (ot: typ) : typ = match ot with
 
 
 let check (globs) =
-
-  let print_hash name ht =
-    let () = Printf.printf "Table: %s keys\n" name in
-    StringHash.iter (fun x _ -> Printf.printf "  %s\n" x) ht
-  in
 
   let _ = StringHash.add global_vars "printi" (Func([Int], Void)) in
   let _ = StringHash.add global_vars "printf" (Func([Float], Float)) in
@@ -91,14 +85,26 @@ let check (globs) =
     with Not_found -> raise (Failure ("undeclared identifier " ^ s))
   in
 
+  let find_body s = try StringHash.find struct_by_body (string_of_typ s)
+              with Not_found -> raise (Failure ("struct type not found: " ^ string_of_typ s)) 
+       in
 
   let check_assign lvaluet rvaluet err =
-    (* if lvaluet = rvaluet then lvaluet else raise (Failure err) *)
-    if lvaluet = rvaluet then lvaluet else lvaluet
+    match (lvaluet, rvaluet) with
+      (Struct(_), Struct(_)) -> let xbody = find_body lvaluet in
+        let ybody = find_body rvaluet in
+        let same = xbody = ybody in
+        if same then lvaluet else raise (Failure err)
+    | (Struct(_), Sbody(_)) -> let xbody = find_body lvaluet in
+        let same = xbody = rvaluet in
+        if same then lvaluet else raise (Failure err)
+    | _ -> let same = lvaluet = rvaluet in
+        if same then lvaluet else raise (Failure err)
   in
 
   let rec expr vars = function
       Literal  l -> (Int, SLiteral l)
+    | Bliteral l -> (Bool, SBliteral l)
     | Fliteral l -> (Float, SFliteral l)
     | Chliteral c -> (Char, SChliteral c)
     | Strliteral s ->
@@ -136,7 +142,10 @@ let check (globs) =
       in
       let arr_len name str = 
         let _ = if (str = "length") then () else raise (Failure ("invalid reference: is not struct or array length")) in
-        let ty_of_lit = function | SAliteral(x, _) -> Arr(x) in
+        let ty_of_lit = function 
+            | SAliteral(x, _) -> Arr(x)
+            | _ -> raise (Failure ("shouldn't happen"))
+        in
         let ty = if (name = "NONE") then (ty_of_lit e') else type_of_identifier vars name in 
         let _ = try typ_of_arr ty
             with Match_failure(_) -> raise (Failure ("cannot take length of type " ^ string_of_typ ty)) in
@@ -156,6 +165,7 @@ let check (globs) =
       let ty = match (expr vars e1) with
         | (_, SId(s)) -> typ_of_arr (type_of_identifier vars s)
         | (_, SAliteral(t, _)) -> t
+        | _ -> raise (Failure ("can only reference an array!"))
       in 
       let e1' = expr vars e1 in
       (* basically just check that the array exists and that expr is an int *)
@@ -164,72 +174,54 @@ let check (globs) =
           else raise(Failure ("array index must be of type int, not " ^ string_of_typ idx_ty)) in
       (ty, SArr_Ref(e1', (idx_ty, e')))
     | Noexpr     -> (Void, SNoexpr)
-    | If (e1, e2, e3) ->
-        let (t1, e1') = expr vars e1
-        and (t2, e2') = expr vars e2
-        and (t3, e3') = expr vars e3 in
-        let same = t2 = t3 in
-        (* e2 and e3 must be same type *)
-        let ty = match t2 with
-          Int when same -> Int
-        | Float when same -> Float
-        | Char when same -> Char
-        | Arr(x) when same -> Arr(x)
-        | _ -> raise (Failure ("illegal if; types must match"))
-        in (ty, SIf((t1, e1'), (t2, e2'), (t3, e3')))
     | Binop(e1, op, e2) as e -> 
         let (t1, e1') = expr vars e1 
         and (t2, e2') = expr vars e2 in
         (* All binary operators require operands of the same type *)
         let same = t1 = t2 in
         (* Determine expression type based on operator and operand types *)
-        let ty = match op with
-          Add | Sub | Mult | Div when same && t1 = Int   -> Int
-        | Add | Sub | Mult | Div when same && t1 = Float -> Float
-        | Add | Sub | Mult | Div when same && t1 = Char -> Char
-        | Equal | Neq            when same               -> Int
-        | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
-        | And | Or when same && t1 = Int -> Int
-        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
-        | Add when (typ_of_arr t1) = (typ_of_arr t2) -> Arr(t1)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
-        in (ty, SBinop((t1, e1'), op, (t2, e2')))
+
+        (match op with
+          | And | Or ->
+            let (_t1, _e1') = match t1 with
+              | Int -> expr vars (Binop(e1, Neq, Literal(0)))
+              | Bool -> (t1, e1')
+              | _ -> raise (Failure "&& and || must be used with integers")
+            in
+            let (_t2, _e2') = match t2 with
+              | Int -> expr vars (Binop(e2, Neq, Literal(0)))
+              | Bool -> (t2, e2')
+              | _ -> raise (Failure "&& and || must be used with integers")
+            in (Bool, SBinop((_t1, _e1'), op, (_t2, _e2')))
+          | _ -> let ty = match op with
+              Add | Sub | Mult | Div when same && t1 = Int   -> Int
+            | Add | Sub | Mult | Div when same && t1 = Float -> Float
+            | Add | Sub | Mult | Div when same && t1 = Char  -> Char
+            | Equal | Neq            when same               -> Bool
+            | Less | Leq | Greater | Geq
+                      when same && (t1 = Int || t1 = Float || t1 = Char) -> Bool
+            | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
+            | Add when (typ_of_arr t1) = (typ_of_arr t2) -> Arr(t1)
+            | _ -> raise (Failure ("illegal binary operator "  ^
+                                    string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                    string_of_typ t2 ^ " in " ^ string_of_expr e))
+            in (ty, SBinop((t1, e1'), op, (t2, e2'))))
     | Unop(op, e) -> 
         let (ty, e') = expr vars e in (ty, SUnop(op, (ty, e')))
     | Call(f, args) as call -> 
         let (t', f') = expr vars f in
-        (* let fd = find_func vars fname in *)
-        (* let (formals, rtype) = match type_of_identifier vars fname with
-          | Func(param_types, rtype) -> (param_types, rtype)
-          | _ ->  raise (Failure ("must be Func type"))
-        in *)
-        
 
         let (formals, rtype) = match t' with
           | Func(formals, rtype) -> (formals, rtype) 
           | _ ->  raise (Failure ("must be Func type"))
         in
 
-        let is_struct ty = (match ty with
-          Struct(x) -> true
-          | _ -> false
-        ) in
-
-        let find_body s = StringHash.find struct_by_body (string_of_typ s) in
-
         let param_length = List.length formals in
         if List.length args != param_length then
           raise (Failure ("expecting " ^ string_of_int param_length ^ 
                             " arguments in " ^ string_of_expr call))
         else let check_call ft e = 
-          (* structs are a special case - we compare struct body to struct literal *)
-          let ft_is_struct = (is_struct ft) in
-          let ft = if ft_is_struct then (find_body ft) else ft in
           let (et, e') = expr vars e in 
-          let et = if ft_is_struct then find_body et else et in
           let err = "illegal argument: found "  ^ string_of_typ et ^
               " expected "  ^ string_of_typ ft ^  " in "  ^ string_of_expr e
           in (check_assign ft et err, e')
@@ -243,14 +235,23 @@ let check (globs) =
     | FuncExpr(params, stmts) ->
         let (ftype, rtype, sstmts) = check_func_decl vars (params, stmts) in
         (ftype, SFuncExpr(params, rtype, sstmts))
+    | _ -> raise(Failure ("expression not implemented"))
   and check_stmt vars = function
       Expr e -> SExpr (expr vars e)
     | Decl(lt, var, e) as ex -> 
+      let _ = match lt with
+          Void -> raise (Failure "cannot assign to void type!")
+        | _ -> ()
+      in
+      let _ = match (StringHash.find_opt vars var) with
+      | Some(_) -> raise (Failure "variable has already been assigned!")
+      | None -> ()
+      in
       let (rt, e') = expr vars e in
-      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
-        string_of_typ rt ^  in  ^ string_of_expr ex" in
+      let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^ 
+        string_of_typ rt ^ " in " ^ string_of_stmt ex in
       StringHash.add vars var lt ;
-      (*(check_assign lt rt err, *) SDecl(lt, var, (rt, e'))
+      ignore(check_assign lt rt err) ; SDecl(lt, var, (rt, e'))
     | Return e -> let (t, e') = expr vars e in SReturn (t, e') 
       (* if t = func.typ then SReturn (t, e') 
       else raise (Failure ("return gives  ^ string_of_typ t ^  expected  ^
@@ -268,6 +269,28 @@ let check (globs) =
         | s :: ss         -> let parsed_stmt = check_stmt v s in parsed_stmt :: check_stmt_list v ss
         | []              -> []
       in SBlock(check_stmt_list vars sl)
+    | If(ltyp, var, cond, e1, e2) ->
+      let (tc, c') = expr vars cond
+      and (t1, e1') = expr vars e1
+      and (t2, e2') = expr vars e2 in
+      let same = t1 = t2 in
+      (* e1 and e2 must be same type *)
+      let rtyp = match t1 with
+        Int when same -> Int
+      | Float when same -> Float
+      | Char when same -> Char
+      | Arr(x) when same -> Arr(x)
+      | _ -> raise (Failure ("illegal if; types must match in then and else branches")) in
+      let same2 = ltyp = rtyp in
+      let _ = match ltyp with
+          Int when same2 -> Int
+        | Float when same2 -> Float
+        | Char when same2 -> Char
+        | Arr(x) when same2 -> Arr(x)
+        | _ -> raise (Failure ("illegal if; types must match for lval and rval")) in
+      StringHash.add vars var ltyp ;
+      SIf(ltyp, var, (tc, c'), (t1, e1'), (t2, e2'))
+    | _ -> raise (Failure ("statement not implemented"))
 
 
   and check_func_decl vars anon_func : (Ast.typ * Ast.typ * Sast.sstmt list) = 
@@ -283,8 +306,16 @@ let check (globs) =
         SBlock(sl) -> sl
       | _ -> raise (Failure ("internal error2: block didn't become a block?"))
     in
+    
+    let check_param param = (match param with
+        Int -> ()
+      | Void -> raise (Failure ("cannot have void formal!"))
+      | _ -> ()
+    )
+    in
 
     let param_types = List.map fst params in
+    let _ = List.map check_param param_types in
 
     let check_empty = match sbody with
       | [] -> raise (Failure ("a function cannot have an empty body"))
@@ -292,7 +323,7 @@ let check (globs) =
     in
 
     let rtype = match check_empty with
-      | SReturn(t, e) -> t
+      | SReturn(t, _) -> t
       | _ -> Void
     in
     (Func(param_types, rtype), rtype, sbody)
@@ -308,22 +339,24 @@ let check (globs) =
       let t1 = get_observable_inner_type ot1 in
       let same = t1 = t2 in
       let ty = match op with
-        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
-        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
-        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
-        | Equal | Neq            when same               -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Int
+        | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
+        | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
-        | And | Or when same && t1 = Int -> Observable(Int)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                 string_of_typ t2 ^  in  ^ string_of_expr e"))
-      in (ty, SMap(
-        (Func([t1],t1), SFuncExpr(
+                  when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
+        | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater
+        | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2))
+      in (Observable(ty), SMap(
+        (Func([t1],ty), SFuncExpr(
           [(t1, "x")],
-          t1,
+          ty,
           [SReturn (
-            t1,
+            ty,
             SBinop(
               (t1, SId("x")),
               op,
@@ -340,22 +373,24 @@ let check (globs) =
       let t2 = get_observable_inner_type ot2 in
       let same = t1 = t2 in
       let ty = match op with
-        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
-        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
-        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
-        | Equal | Neq            when same               -> Observable(Int)
+        | Add | Sub | Mult | Div when same && t1 = Int   -> Int
+        | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
+        | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
-        | And | Or when same && t1 = Int -> Observable(Int)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
-      in (ty, SMap(
-        (Func([t2],t2), SFuncExpr(
+                  when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
+        | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater
+        | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2))
+      in (Observable(ty), SMap(
+        (Func([t2],ty), SFuncExpr(
           [(t2, "x")],
-          t2,
+          ty,
           [SReturn (
-            t2,
+            ty,
             SBinop(
               (t1, e1'),
               op,
@@ -373,22 +408,24 @@ let check (globs) =
       let t2 = get_observable_inner_type ot2 in
       let same = t1 = t2 in
       let ty = match op with
-        | Add | Sub | Mult | Div when same && t1 = Int   -> Observable(Int)
-        | Add | Sub | Mult | Div when same && t1 = Float -> Observable(Float)
-        | Add | Sub | Mult | Div when same && t1 = Char  -> Observable(Char)
-        | Equal | Neq            when same               -> Observable(Int)
+          Add | Sub | Mult | Div when same && t1 = Int   -> Int
+        | Add | Sub | Mult | Div when same && t1 = Float -> Float
+        | Add | Sub | Mult | Div when same && t1 = Char -> Char
+        | Equal | Neq            when same               -> Int
         | Less | Leq | Greater | Geq
-                   when same && (t1 = Int || t1 = Float || t1 = Char) -> Observable(Int)
-        | And | Or when same && t1 = Int -> Observable(Int)
-        | _ -> raise (Failure ("illegal binary operator  ^
-                                string_of_typ t1 ^  ^ string_of_op op ^  ^
-                                string_of_typ t2 ^  in  ^ string_of_expr e"))
-      in (ty, SCombine(
-        (Func([t1;t2],t1), SFuncExpr(
+                  when same && (t1 = Int || t1 = Float || t1 = Char) -> Int
+        | And | Or when same && t1 = Int -> Int
+        | Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater
+        | Geq when ((t1 = Float && t2 = Int) || (t1 = Int && t2 = Float)) -> Float
+        | _ -> raise (Failure ("illegal binary operator "  ^
+                                string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
+                                string_of_typ t2))
+      in (Observable(ty), SCombine(
+        (Func([t1;t2],ty), SFuncExpr(
           [(t1, "x"); (t2, "y")],
-          t1,
+          ty,
           [SReturn (
-            t1,
+            ty,
             SBinop(
               (t1, SId("x")),
               op,
@@ -406,14 +443,14 @@ let check (globs) =
       let (ot, oe') = oexpr vars oe in
 
       let (args, rt) = match t with
-        | Func(args, rt) -> (args, rt)
+        | Func(args, rt) when rt != Void -> (args, rt)
         | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
                                    " with map()"))
       in
 
       let it' = match ot with
         | Observable x -> x
-        | _ as x -> raise (Failure ("second arguement of map must be an observable"))
+        | _ -> raise (Failure ("second arguement of map must be an observable"))
       in let _ = match args with
         | [a] when a = it' -> ()
         | _ -> raise (Failure ("map function type does not match"))
@@ -425,38 +462,33 @@ let check (globs) =
       let (ot2, oe2') = oexpr vars oe2 in
 
       let (args, rt) = match t with
-        | Func(args, rt) -> (args, rt)
+        | Func(args, rt) when rt != Void -> (args, rt)
         | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
                                     " with map()"))
       in
 
       let it1' = match ot1 with
         | Observable x -> x
-        | _ as x -> raise (Failure ("second arguement of map must be an observable"))
+        | _ -> raise (Failure ("second arguement of map must be an observable"))
       in let it2' = match ot2 with
         | Observable x -> x
-        | _ as x -> raise (Failure ("third arguement of map must be an observable"))
+        | _ -> raise (Failure ("third arguement of map must be an observable"))
       in let _ = match args with
         | [a;b] when a = it1' && b = it2' -> ()
         | _ -> raise (Failure ("map function type does not match"))
       in
       (Observable rt, SCombine((t, e'), (ot1, oe1'), (ot2, oe2')))
-    | _ -> raise (Failure ("Not Implemented 1020"))
   in
 
   let check_obs_stmt vars = function
       Obs(t, e) -> SObs(t, e)
     | OExpr oe -> SOExpr(oexpr vars oe)
-    | ODecl(lt, var, e) as ex ->
+    | ODecl(lt, var, e) ->
       let (rt, e') = expr vars e in
-      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
-        string_of_typ rt ^  in  ^ string_of_expr ex" in
       StringHash.add vars var lt;
       SODecl(lt, var, (rt, e'))
-    | OODecl(lt, var, oe) as ex ->
+    | OODecl(lt, var, oe) ->
       let (rt, oe') = oexpr vars oe in
-      let err = "illegal assignment  ^ string_of_typ lt ^  =  ^ 
-        string_of_typ rt ^  in  ^ string_of_expr ex" in
       StringHash.add vars var lt;
       SOODecl(lt, var, (rt, oe'))
     | OAssign(s, e) ->
@@ -471,11 +503,31 @@ let check (globs) =
     | OArr_Decl of typ * string * expr list
     | OStr_Decl of typ * string * expr list
     *)
-    | Subscribe(s, e, oe) ->
+    | Subscribe(e, oe) ->
       let (ft, e') = expr vars e in
       let (ot, oe') = oexpr vars oe in
-      (* Need to check function type *)
-      SSubscribe(s, (ft, e'), (ot, oe'))
+
+      let (args, _) = match ft with
+        | Func(args, rt) -> (args, rt)
+        | _ as x-> raise (Failure ("illegal expression of type " ^ string_of_typ x ^
+                                  " with map()"))
+      in
+
+      let it' = match ot with
+        | Observable x -> x
+        | _ -> raise (Failure ("second arguement of map must be an observable"))
+      in let _ = match args with
+        | [a] when a = it' -> ()
+        | _ -> raise (Failure ("map function type does not match"))
+      in
+      SSubscribe("subscribe", (ft, e'), (ot, oe'))
+    | Complete(oe) ->
+      let (ot, oe') = oexpr vars oe in 
+      let _ = match ot with
+        | Observable x -> x
+        | _ -> raise (Failure ("second arguement of map must be an observable"))
+      in
+      SComplete("complete", (ot, oe'))
     | _ -> raise (Failure ("Not Implemented 1000"))
   in
 

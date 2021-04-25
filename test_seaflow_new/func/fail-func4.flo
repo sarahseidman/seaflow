@@ -1,0 +1,15 @@
+int foo() {
+  return 9;
+}
+
+int bar() {
+  int a = 4;
+  void b = 3; /* Error: illegal void local b */
+  char c = 'c';
+
+  return 0;
+}
+
+int baz() {
+  return 0;
+}

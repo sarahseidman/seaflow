@@ -1,0 +1,16 @@
+int apple(int x) {
+    printi(x);
+    return x;
+}
+
+int add(int x, int y) {
+    return x + y;
+}
+
+
+int $a = 5;
+int $b = 100;
+int $c = combine(add, $a, $b);
+subscribe(apple, $c);
+
+$a = 100;

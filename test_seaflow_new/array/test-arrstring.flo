@@ -1,0 +1,6 @@
+char[] c = "hello world!";
+printc(c[0]);
+printc(c[1]);
+
+/* strings are null terminated */
+printc(c[c.length - 2]);

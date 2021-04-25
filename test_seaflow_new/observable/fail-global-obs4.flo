@@ -1,0 +1,8 @@
+void apple(float x) {
+    printf(x);
+    return;
+}
+
+int a = 5;
+
+complete(a);

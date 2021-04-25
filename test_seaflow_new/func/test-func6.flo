@@ -1,0 +1,11 @@
+void foo(int a) {
+  printi(a + 3);
+  return;
+}
+
+void bar() {
+  int i = 40;
+  foo(i);
+}
+
+bar();

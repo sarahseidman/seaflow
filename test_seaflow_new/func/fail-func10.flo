@@ -1,0 +1,10 @@
+int add(int a, int b) {
+  return a + b;
+}
+
+void foo() {
+  int a = add(39, 'c');
+  printi(a);
+}
+
+foo();

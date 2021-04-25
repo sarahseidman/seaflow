@@ -1,0 +1,6 @@
+float[] a = [1.0, 3.4, 2.1];
+int y = 0;
+int z = 1;
+
+printf(a[y]);
+printf(a[z]);

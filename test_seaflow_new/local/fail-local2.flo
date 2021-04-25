@@ -1,0 +1,12 @@
+int foo(int a, char b, int c) {
+  return 0;
+}
+
+int bar(int a, char b, int c) {
+  void d = 0;
+  return 0;
+}
+
+int baz() {
+  return 0;
+}

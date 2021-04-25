@@ -6,7 +6,7 @@ type op = Add | Sub | Mult | Div | Equal | Neq | Less | Leq | Greater | Geq |
 type uop = Neg
 
 type typ = Int | Float | Void | Char | Arr of typ | Struct of string | Sbody of typ list | Func of typ list * typ
-  | Observable of typ
+  | Observable of typ | Bool
 
 (* type otyp = Observable of typ *)
 
@@ -15,6 +15,7 @@ type bind = typ * string
 
 type expr =
     Literal of int
+  | Bliteral of bool
   | Fliteral of string
   | Chliteral of char
   | Strliteral of string
@@ -26,7 +27,6 @@ type expr =
   | Call of expr * expr list
   | Ref of expr * string
   | Arr_Ref of expr * expr
-  | If of expr * expr * expr
   | FuncExpr of bind list * stmt list
   | Sliteral of expr list
   | Noexpr
@@ -36,6 +36,7 @@ and stmt =
     Block of stmt list
   (* | Obs of string *)
   | Expr of expr
+  | If of typ * string * expr * expr * expr
   | Return of expr
   | Print of expr
   | Decl of typ * string * expr
@@ -69,7 +70,8 @@ type obs_stmt =
   | OOAssign of string * oexpr
   | OArr_Decl of typ * string * expr list
   | OStr_Decl of typ * string * expr list
-  | Subscribe of string * expr * oexpr
+  | Subscribe of expr * oexpr
+  | Complete of oexpr
   (* glob_line:
   vdec { Vdecl($1) }
 | fdecl { Fdecl($1) }
@@ -103,9 +105,11 @@ let rec string_of_typ = function
       String.concat ", " (List.map string_of_typ typ_list)
       ^ ") -> (" ^ string_of_typ typ ^ ")"
   | Observable(typ) -> string_of_typ typ ^ "$"
+  | Bool -> "bool"
 
 let typ_of_arr = function
   | Arr(typ) -> typ
+  | _ -> raise (Failure ("Not an array"))
 
 let string_of_bind (t, id) = string_of_typ t ^ " " ^ id ^ ";"
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
@@ -129,6 +133,7 @@ let string_of_uop = function
 
 let rec string_of_expr = function
     Literal(l) -> string_of_int l
+  | Bliteral(b) -> if b then "TRUE" else "FALSE"
   | Fliteral(l) -> l
   | Chliteral(l) -> "'" ^ String.make 1 l ^ "'"
   | Aliteral(l) -> "[" ^ String.concat "," (List.map string_of_expr l) ^ "]"
@@ -142,8 +147,6 @@ let rec string_of_expr = function
     string_of_expr ef ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Ref(e, s) -> string_of_expr e ^ "." ^ s
   | Arr_Ref(e1, e2) -> string_of_expr e1 ^ "[" ^ string_of_expr e2 ^ "]"
-  | If(e1, e2, e3) -> "if(" ^ string_of_expr e1 ^ ") " ^ string_of_expr e2 ^ " else "
-      ^ string_of_expr e3
   | FuncExpr(bind_list, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
@@ -162,6 +165,8 @@ string_of_stmt = function
   | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
+  | If(t, s, e1, e2, e3) -> string_of_typ t ^ " " ^ s ^ " = if(" ^ string_of_expr e1 ^ ") "
+      ^ string_of_expr e2 ^ " else " ^ string_of_expr e3 
 
 
 let rec string_of_oexpr = function
@@ -189,8 +194,10 @@ let string_of_obs_stmt = function
       String.concat ", " (List.map string_of_expr expr_list) ^ "];\n"
   | OStr_Decl(t, s, expr_list) -> string_of_typ t ^ " " ^ s ^ " = {" ^
       String.concat ", " (List.map string_of_expr expr_list) ^ "};\n"
-  | Subscribe(s, e, oe) ->
-      s ^ "(" ^ string_of_expr e ^ ", " ^ string_of_oexpr oe ^ ");\n"
+  | Subscribe(e, oe) ->
+      "subscribe(" ^ string_of_expr e ^ ", " ^ string_of_oexpr oe ^ ");\n"
+  | Complete(oe) ->
+      "complete(" ^ string_of_oexpr oe ^ ");\n"
 
 
 let string_of_fdecl fdecl =

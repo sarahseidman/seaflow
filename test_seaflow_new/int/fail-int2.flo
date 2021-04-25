@@ -1,0 +1,5 @@
+int a = 7;
+
+float b = a;
+
+printf(b);

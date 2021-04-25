@@ -1,0 +1,10 @@
+int foo(int a, char b) {
+  return 0;
+}
+
+int bar() {
+  foo(42, 'c');
+  foo(42, 42); /* Fail: int, not char */
+}
+
+bar();

@@ -1,0 +1,9 @@
+float apple(float x) {
+    printf(x);
+    return x;
+}
+
+
+int a = 5;
+
+subscribe(apple, a);

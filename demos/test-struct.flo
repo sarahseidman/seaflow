@@ -1,0 +1,35 @@
+struct Point {
+    int x;
+    int y;
+    char[] name;
+};
+
+struct Birthday {
+    int day;
+    int year;
+    char[] month;
+};
+
+
+struct Point p = {32, 45, "seaflow" };
+
+char[] n = p.name;
+printc(n[0]);
+
+
+int slope(struct Point p, struct Point q) {
+    return (p.y + q.y) / (p.x + q.y);
+}
+
+
+struct Point x = {30, 12, "seaflow"};
+int s1 = slope(x, p);
+
+
+struct Birthday y = {12, 1999, "june"};
+int s2 = slope(y, p);
+printi(s2);
+
+struct Point z = y;
+printi(z.x);
+

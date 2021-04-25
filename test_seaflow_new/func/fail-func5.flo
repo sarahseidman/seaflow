@@ -1,0 +1,11 @@
+int foo(int a, char b) {
+  return 2;
+}
+
+int bar() {
+  foo(42, 'c');
+  foo(42); /* Wrong number of arguments */
+  return 0;
+}
+
+bar();

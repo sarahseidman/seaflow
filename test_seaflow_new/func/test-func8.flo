@@ -1,0 +1,10 @@
+char foo(int a, char b) {
+  return b;
+}
+
+void bar() {
+  char d = foo(52, 'c');
+  printc(d);
+}
+
+bar();

@@ -1,0 +1,11 @@
+int foo(int a, char b, int c) {
+  return 7;
+}
+
+int bar(int a, void b, int c) {
+  return 0;
+} /* Error: illegal void formal b */
+
+int baz() {
+  return 0;
+}

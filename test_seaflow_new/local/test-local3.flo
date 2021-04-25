@@ -1,0 +1,6 @@
+void foo() {
+    char c = 'c';
+    printc(c);
+}
+
+foo();
