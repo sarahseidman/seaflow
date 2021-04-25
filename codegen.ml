@@ -99,6 +99,14 @@ let translate (globs) =
   let printf_func : L.llvalue =
     L.declare_function "printf" printf_t the_module in (* L.declare_function returns the function if it already exits in the module *)
 
+  let array_concat_t : L.lltype =
+    L.function_type (L.pointer_type void_ptr_t) 
+        [| L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t ; L.pointer_type void_ptr_t |] in
+  let array_concat_int_func : L.llvalue =
+      L.declare_function "array_concat_int" array_concat_t the_module in
+  let array_concat_char_func : L.llvalue =
+    L.declare_function "array_concat_char" array_concat_t the_module in
+
 
   let main_ftype = L.function_type i32_t [| |] in
   let main_function = L.define_function "main" main_ftype the_module in
@@ -149,6 +157,7 @@ let translate (globs) =
   let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
   let float_format_str builder = L.build_global_stringptr "%f\n" "fmt" builder in
   let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in
+  let str_format_str builder = L.build_global_stringptr "%s\n" "fmt" builder in
 
 
   let next_ftype = L.function_type void_t [| obv_pt |] in
@@ -168,36 +177,28 @@ let translate (globs) =
         with Not_found -> raise (Failure ("Variable " ^ n ^ " not found"))
   in
 
-  let arr_concat a1 a2 builder = 
-    (* initialization of idx var *)
-    let init_idx = L.const_int i32_t 1 in 
-    let idxp = L.build_alloca (L.type_of init_idx) "idx" builder in
-    let s = L.build_store init_idx idxp builder in
-    let idx = L.build_load s "idx" builder in
-    
-    (* get length of 1st array *)
-    let i = L.const_int i32_t 0 in 
-    let len = L.build_gep a1 [| i |] "" builder in
+  let add_store_arr ptr builder i e = 
+    let idx = L.const_int i32_t i in
+    let eptr = L.build_gep ptr [|idx|] "e" builder in
+    let cptr = L.build_pointercast eptr 
+        (L.pointer_type (L.pointer_type (L.type_of e))) "p" builder in
+    let ealloc = L.build_alloca (L.type_of e) "ealloc" builder in
+    L.build_store e ealloc builder ;
+    L.build_store ealloc cptr builder; i+1
+  in
+
+  let get_array_len a builder = 
+    let idx = L.const_int i32_t 0 in 
+    let len = L.build_gep a [| idx |] "" builder in
     let v = L.build_load len "vptr" builder in
     let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
-    let length = L.build_load iptr "a" builder in
+    L.build_load iptr "a" builder
+  in
 
-    (* main_function should be replaced - this should be a builtin function like onNext *)
-    let pred_bb = L.append_block context "while" main_function in
-    ignore(L.build_br pred_bb builder);
+  let arr_ty_of_expr = function  
+    | (_, SId(s)) -> ltype_of_typ (StringHash.find arr_types s)
+    | (_, SAliteral(t, a)) -> ltype_of_typ t
 
-    let body_bb = L.append_block context "while_body" main_function in
-    let body_builder = L.builder_at_end context body_bb in
-    (* add_terminal (stmt (L.builder_at_end context body_bb) body) *)
-    (* here will be the loop body *)
-    (L.build_br pred_bb);
-
-    let pred_builder = L.builder_at_end context pred_bb in 
-    let bool_val = L.build_icmp L.Icmp.Slt idx length "comp" pred_builder in
-
-    let merge_bb = L.append_block context "merge" main_function in
-    ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
-    ignore(L.builder_at_end context merge_bb) ; iptr
   in
 
   let rec expr vars builder ((tt, e) : sexpr) = match e with
@@ -208,20 +209,10 @@ let translate (globs) =
     | SId s        -> L.build_load (lookup vars s) s builder
     | SAliteral (ty, a) ->
       let elems = List.map (expr vars builder) a in
-      let arr_t = void_ptr_t in
       let num = List.length elems in
-      let ptr = L.build_array_alloca arr_t (L.const_int i32_t (num+1)) "a" builder in
-      let add_store i e = 
-        let idx = L.const_int i32_t i in
-        let eptr = L.build_gep ptr [|idx|] "e" builder in
-        let cptr = L.build_pointercast eptr 
-            (L.pointer_type (L.pointer_type (L.type_of e))) "p" builder in
-        let ealloc = L.build_alloca (L.type_of e) "ealloc" builder in
-        ignore(L.build_store e ealloc builder) ;
-        ignore(L.build_store ealloc cptr builder) ; i+1
-      in
-      ignore(add_store 0 (L.const_int i32_t num)) ; 
-      ignore(List.fold_left add_store 1 elems) ; ptr
+      let ptr = L.build_array_alloca void_ptr_t (L.const_int i32_t (num+1)) "a" builder in
+      add_store_arr ptr builder 0 (L.const_int i32_t num) ; 
+      List.fold_left (add_store_arr ptr builder) 1 elems ; ptr
     | SRef(str_name, type_of_struct, fieldname) ->
       let loc = L.build_load (lookup vars str_name) str_name builder in
       let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
@@ -248,11 +239,7 @@ let translate (globs) =
         L.build_pointercast ptr (L.pointer_type ty) "pcast" builder 
     | SArr_Ref(e1, e2) ->
       (* how to check for out of bounds index? *)
-      let ty = match e1 with 
-        | (_, SId(s)) -> ltype_of_typ (StringHash.find arr_types s)
-        | (_, SAliteral(t, a)) -> ltype_of_typ t
-        | _ -> raise (Failure ("arr_ref is not an array?"))
-      in
+      let ty = arr_ty_of_expr e1 in
       let arr = expr vars builder e1 in
       let idx = expr vars builder e2 in 
       let sum = L.build_add idx (L.const_int i32_t 1) "sum" builder in
@@ -260,37 +247,30 @@ let translate (globs) =
       let v = L.build_load vptr "vptr" builder in
       let iptr = L.build_pointercast v (L.pointer_type ty) "iptr" builder in
       L.build_load iptr "a" builder 
-    | SLen(e) ->
-      let arr = expr vars builder e in
-      let idx = L.const_int i32_t 0 in 
-      let len = L.build_gep arr [| idx |] "" builder in
-      let v = L.build_load len "vptr" builder in
-      let iptr = L.build_pointercast v (L.pointer_type i32_t) "iptr" builder in
-      L.build_load iptr "a" builder
-    (* | SIf (e1, e2, e3) ->
-      let e1' = expr vars builder e1
-      and e2' = expr vars builder e2
-      and e3' = expr vars builder e3 in
-      L.build_select e1' e2' e3' "tmp" builder *)
+    | SLen(e) -> get_array_len (expr vars builder e) builder
     | SFuncExpr(params, rt, sstmts) ->
       build_function (params, rt, sstmts)
-    (*| SBinop ((A.Float,_ ) as e1, op, e2) ->
-      let e1' = expr vars builder e1
-      and e2' = expr vars builder e2 in
-      (match op with 
-        A.Add     -> L.build_fadd
-      | A.Sub     -> L.build_fsub
-      | A.Mult    -> L.build_fmul
-      | A.Div     -> L.build_fdiv 
-      | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
-      | A.Neq     -> L.build_fcmp L.Fcmp.One
-      | A.Less    -> L.build_fcmp L.Fcmp.Olt
-      | A.Leq     -> L.build_fcmp L.Fcmp.Ole
-      | A.Greater -> L.build_fcmp L.Fcmp.Ogt
-      | A.Geq     -> L.build_fcmp L.Fcmp.Oge
-      | A.And | A.Or ->
-          raise (Failure "internal error: semant should have rejected and/or on float")
-      ) e1' (L.build_sitofp e2' float_t "tmp" builder) "tmp" builder*)
+    | SBinop ((A.Arr(_),_ ) as e1, op, e2) -> 
+        let elem_ty = arr_ty_of_expr e1 in
+        let arr = expr vars builder e1 in
+        let arr2 = expr vars builder e2 in
+        let ptr = L.build_gep arr [| L.const_int i32_t 0 |] "ptr" builder in
+        let ptr2 = L.build_gep arr2 [| L.const_int i32_t 0 |] "ptr" builder in
+
+        let len1 = get_array_len arr builder in
+        let len2 = get_array_len arr2 builder in
+        let total_len = L.build_add len1 len2 "sum" builder in
+        let make_len = L.build_add total_len (L.const_int i32_t 1) "sum2" builder in
+
+        let ptr3 = L.build_array_alloca void_ptr_t make_len "a" builder in
+        ignore(add_store_arr ptr3 builder 0 total_len) ;
+
+        let _ = match (A.typ_of_arr (fst e1)) with
+          | A.Int -> ignore(L.build_call array_concat_int_func [| ptr ; ptr2 ; ptr3 |] "array_concat" builder)
+          | A.Char -> ignore(L.build_call array_concat_char_func [| ptr ; ptr2 ; ptr3 |] "array_concat" builder)
+          | _ -> raise (Failure ("concatenation of this type not supported"))
+         in ptr3
+
       | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in

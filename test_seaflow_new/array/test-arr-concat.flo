@@ -1,0 +1,16 @@
+int[] a = [4,5,6];
+int[] b = [7,8,9];
+
+int[] c = a + b;
+
+printi(c.length);
+
+printi(c[0]);
+printi(c[5]);
+
+char[] d = ['a','b','c'];
+char[] e = ['d','e','f'];
+char[] f = d + e;
+printi(f.length);
+printc(f[0]);
+printc(f[5]);
