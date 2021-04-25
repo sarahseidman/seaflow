@@ -10,8 +10,15 @@ float fahrenheit_converter (float temp, char type) {
 
 float $t = combine(fahrenheit_converter, $temperature, $temp_type);
 
-subscribe(printf, $t - (100 - $relative_humidity) / 5);
 
+float $out = $t - (100 - $relative_humidity) / 5;
+
+subscribe((float x)->{
+    prints("New dew point:");
+    printf(x);
+    prints("");
+    return;
+}, $out);
 
 
 $relative_humidity = 60.0;
