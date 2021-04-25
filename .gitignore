@@ -12,7 +12,6 @@ seaflowparse.output
 scanner.ml
 *.cmi
 *.cmo
-seaflow
 seaflow.native
 *.ll
 /test-*.out
@@ -22,6 +21,7 @@ seaflow.native
 /fail-*.err
 /fail-*.diff
 /failat*.flo.*
+/utils.o
 
 # Environment
 **/.DS_store

@@ -31,20 +31,6 @@ clean :
 	rm -f seaflowparse.ml
 	rm -f seaflowparse.mli
 	rm -f *.o
-
-.PHONY : intermediate
-intermediate :
-	ocamllex scanner.mll
-	ocamlyacc seaflowparse.mly
-	ocamlc -c ast.ml
-	ocamlc -c sast.ml
-	ocamlc -c seaflowparse.mli
-	ocamlc -c scanner.ml
-	ocamlc -c seaflowparse.ml
-	ocamlc -c semant.ml
-	ocamlc -c seaflow.ml
-	ocamlc -o seaflow seaflowparse.cmo scanner.cmo seaflow.cmo sast.cmo semant.cmo
-
 	
 # Building the array concatenation util
 

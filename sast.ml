@@ -21,7 +21,7 @@ and sx =
   | SSliteral of sexpr list
   | SLen of sexpr
   | SNoexpr
-  | SVoid
+  | SNull
 
 and
 
@@ -111,9 +111,9 @@ let rec string_of_sexpr (t, e) =
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
   | SSliteral(e_list) -> "(sliteral: { " ^ String.concat ", " (List.map string_of_sexpr e_list) ^ " })"
   | SLen(e) -> string_of_sexpr e ^ ".length"
-  | SVoid -> ""
+  | SNull -> "null"
   | SNoexpr -> ""
-        ) ^ ")"		
+        ) ^ ")"	
 
 and
 

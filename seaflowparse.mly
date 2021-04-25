@@ -143,7 +143,7 @@ expr_opt:
 
 expr:
     LITERAL          { Literal($1)            }
-  // | NULL             { Void                    }
+  | NULL             { Null                   }
   | FLIT             { Fliteral($1)           }
   | CHLIT            { Chliteral($1)          }
   | STRLIT           { Strliteral($1)         }

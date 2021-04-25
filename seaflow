@@ -1,0 +1,44 @@
+#!/bin/sh
+
+SEAFLOW="./seaflow.native"
+
+# Path to the LLVM interpreter
+LLI="lli"
+#LLI="/usr/local/opt/llvm/bin/lli"
+
+# Path to the LLVM compiler
+LLC="llc"
+
+# Path to the C compiler
+CC="cc"
+
+Run() {
+    eval $* || {
+	SignalError "$1 failed on $*"
+	return 1
+    }
+}
+
+if [ "$#" -ne 1 ]
+then
+    echo "$#"
+    echo "Usage: ./seaflow.sh <*.flo>"
+    exit 0
+fi
+
+set -e
+
+basename=`echo $1 | sed 's/.*\\///
+                             s/.flo//'`
+
+echo 1>/dev/null
+generatedfiles=""
+
+Run "$SEAFLOW" "$1" ">" "${basename}.ll" &&
+Run "$LLC" "-relocation-model=pic" "${basename}.ll" ">" "${basename}.s" &&
+Run "$CC" "-o" "${basename}" "${basename}.s" "utils.o"
+
+rm "${basename}.ll"
+rm "${basename}.s"
+
+set +e

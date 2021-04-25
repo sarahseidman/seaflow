@@ -30,7 +30,7 @@ type expr =
   | FuncExpr of bind list * stmt list
   | Sliteral of expr list
   | Noexpr
-  | Void
+  | Null
 
 and stmt =
     Block of stmt list
@@ -152,7 +152,7 @@ let rec string_of_expr = function
       String.concat "" (List.map string_of_stmt stmt_list) ^ "}"
   | Sliteral(e_list) -> "{ " ^ String.concat ", " (List.map string_of_expr e_list) ^ " }"
   | Noexpr -> ""
-  | Void -> ""
+  | Null -> ""
 
 and
 

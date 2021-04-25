@@ -70,6 +70,7 @@ let translate (globs) =
       let rltype = ltype_of_typ rtype in
       L.pointer_type (L.function_type rltype (Array.of_list param_ltypes))
     | A.Observable _ -> L.pointer_type obv_t
+    | _ -> raise (Failure "Unknown type 2200")
 
 
   and obv_t = L.named_struct_type context "observable" in
@@ -126,7 +127,7 @@ let translate (globs) =
     | _ as x -> raise (Failure ("No match found for " ^ A.string_of_typ x))
   in
 
-  let add_global_var (t, s, v, builder) =
+  (* let add_global_var (t, s, v, builder) =
     let _ = match StringHash.find_opt global_vars s with
       | Some(_) -> raise (Failure "Cannot declare global more than once!")
       | None -> ()
@@ -143,7 +144,7 @@ let translate (globs) =
     in
     let store = L.define_global s (init t) the_module in
     ignore(L.build_store v store builder) ; StringHash.add global_vars s store
-  in
+  in *)
 
   (* LLVM insists each basic block end with exactly one "terminator"
      instruction that transfers control.  This function runs "instr builder"
@@ -157,7 +158,7 @@ let translate (globs) =
   let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
   let float_format_str builder = L.build_global_stringptr "%f\n" "fmt" builder in
   let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in
-  let str_format_str builder = L.build_global_stringptr "%s\n" "fmt" builder in
+  (* let str_format_str builder = L.build_global_stringptr "%s\n" "fmt" builder in *)
 
 
   let next_ftype = L.function_type void_t [| obv_pt |] in
@@ -183,8 +184,8 @@ let translate (globs) =
     let cptr = L.build_pointercast eptr 
         (L.pointer_type (L.pointer_type (L.type_of e))) "p" builder in
     let ealloc = L.build_alloca (L.type_of e) "ealloc" builder in
-    L.build_store e ealloc builder ;
-    L.build_store ealloc cptr builder; i+1
+    ignore(L.build_store e ealloc builder);
+    ignore(L.build_store ealloc cptr builder); i+1
   in
 
   let get_array_len a builder = 
@@ -197,8 +198,8 @@ let translate (globs) =
 
   let arr_ty_of_expr = function  
     | (_, SId(s)) -> ltype_of_typ (StringHash.find arr_types s)
-    | (_, SAliteral(t, a)) -> ltype_of_typ t
-
+    | (_, SAliteral(t, _)) -> ltype_of_typ t
+    | _ -> raise (Failure "Wrong type for arr_ty_of_expr")
   in
 
   let rec expr vars builder ((tt, e) : sexpr) = match e with
@@ -207,15 +208,15 @@ let translate (globs) =
     | SChliteral c -> L.const_int i8_t (Char.code c)
     | SFliteral l  -> L.const_float_of_string float_t l
     | SId s        -> L.build_load (lookup vars s) s builder
-    | SAliteral (ty, a) ->
+    | SAliteral (_, a) ->
       let elems = List.map (expr vars builder) a in
       let num = List.length elems in
       let ptr = L.build_array_alloca void_ptr_t (L.const_int i32_t (num+1)) "a" builder in
-      add_store_arr ptr builder 0 (L.const_int i32_t num) ; 
-      List.fold_left (add_store_arr ptr builder) 1 elems ; ptr
+      ignore(add_store_arr ptr builder 0 (L.const_int i32_t num)); 
+      ignore(List.fold_left (add_store_arr ptr builder) 1 elems); ptr
     | SRef(str_name, type_of_struct, fieldname) ->
       let loc = L.build_load (lookup vars str_name) str_name builder in
-      let (ty, tlist, flist) = StringHash.find global_structs type_of_struct in
+      let (_, tlist, flist) = StringHash.find global_structs type_of_struct in
       let rec find x lst =
         match lst with
         | [] -> raise (Failure "Struct name not found")
@@ -250,8 +251,7 @@ let translate (globs) =
     | SLen(e) -> get_array_len (expr vars builder e) builder
     | SFuncExpr(params, rt, sstmts) ->
       build_function (params, rt, sstmts)
-    | SBinop ((A.Arr(_),_ ) as e1, op, e2) -> 
-        let elem_ty = arr_ty_of_expr e1 in
+    | SBinop ((A.Arr(_),_ ) as e1, _, e2) -> 
         let arr = expr vars builder e1 in
         let arr2 = expr vars builder e2 in
         let ptr = L.build_gep arr [| L.const_int i32_t 0 |] "ptr" builder in
@@ -271,7 +271,7 @@ let translate (globs) =
           | _ -> raise (Failure ("concatenation of this type not supported"))
          in ptr3
 
-      | SBinop (e1, op, e2) ->
+    | SBinop (e1, op, e2) ->
       let e1' = expr vars builder e1
       and e2' = expr vars builder e2 in
       let t1 = L.type_of e1'
@@ -328,6 +328,7 @@ let translate (globs) =
 
       | A.And | A.Or when (same_float || float_left || float_right) ->
           raise (Failure "internal error: semant should have rejected and/or on float")
+      | _ -> raise (Failure "Unknown Binop case")
       )
     | SUnop(op, ((t, _) as e)) ->
       let e' = expr vars builder e in
@@ -379,7 +380,7 @@ let translate (globs) =
         | None -> ()
       in
       let _store = L.build_alloca (ltype_of_typ t) n local_builder in
-      let a = match t with
+      let _ = match t with
         | A.Arr(x) -> StringHash.add arr_types n x
         | _ -> ()
       in
@@ -395,18 +396,11 @@ let translate (globs) =
       let local_store = _add_store (t, n) in
       L.set_value_name n p;
       _fill_store p local_store;
-      let a = match t with
+      let _ = match t with
         | A.Arr(x) -> StringHash.add arr_types n x
         | _ -> ()
       in 
       ()
-    in
-
-    let add_local_arr n p ltyp = 
-      L.set_value_name n p ; 
-      let local = L.build_alloca ltyp n local_builder in
-      ignore (L.build_store p local local_builder);
-      StringHash.add local_vars n local
     in
 
     let _ = List.iter2 add_formal params
@@ -670,7 +664,7 @@ let translate (globs) =
           | A.Int   -> L.const_int i32_t 0
           | A.Bool  -> L.const_int i1_t 0
           | A.Char  -> L.const_int i8_t 0
-          | A.Arr(ti) -> L.const_null (L.pointer_type void_ptr_t)
+          | A.Arr(_) -> L.const_null (L.pointer_type void_ptr_t)
           | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
           | A.Struct(_) as s -> L.const_pointer_null (ltype_of_typ s)
           | _ as x -> raise (Failure ("Cannot have global of type: " ^ A.string_of_typ x))
@@ -685,7 +679,7 @@ let translate (globs) =
           | A.Arr(x) -> StringHash.add arr_types s x
           | _ -> ()
         in 
-        L.build_store e' store builder;
+        ignore(L.build_store e' store builder);
         builder
         (* let _ = add_global_var (t, s, e', builder) in builder *)
     | SStr_Def(s, b_list) ->
@@ -1033,8 +1027,7 @@ let translate (globs) =
     ignore(L.build_br while_pred_bb builder) ;
     ignore(L.build_cond_br cond while_body_bb merge_bb while_pred_builder) ;
     ignore(L.build_br while_pred_bb while_body_builder);
-    L.build_ret_void merge_builder;
-    ()
+    ignore(L.build_ret_void merge_builder)
   in
 
   the_module
