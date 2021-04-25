@@ -12,4 +12,4 @@ int baz(int i, int j) {
   return 0;
 }
 
-baz(7, 12);
+int q = baz(7, 12);
