@@ -126,6 +126,8 @@ string_of_sstmt = function
   | SDecl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_sexpr expr ^ ";\n"
   | SStr_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
+  | SIf(t, s, e1, e2, e3) -> string_of_typ t ^ " " ^ s ^ " = if(" ^ string_of_sexpr e1 ^ ") "
+    ^ string_of_sexpr e2 ^ " else " ^ string_of_sexpr e3
 
 
 let rec string_of_soexpr (t, e) =

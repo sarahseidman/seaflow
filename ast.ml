@@ -105,9 +105,11 @@ let rec string_of_typ = function
       String.concat ", " (List.map string_of_typ typ_list)
       ^ ") -> (" ^ string_of_typ typ ^ ")"
   | Observable(typ) -> string_of_typ typ ^ "$"
+  | Bool -> "bool"
 
 let typ_of_arr = function
   | Arr(typ) -> typ
+  | _ -> raise (Failure ("Not an array"))
 
 let string_of_bind (t, id) = string_of_typ t ^ " " ^ id ^ ";"
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
@@ -163,6 +165,8 @@ string_of_stmt = function
   | Decl(t, s, expr) -> string_of_typ t ^ " " ^ s ^ " = "^ string_of_expr expr ^ ";\n"
   | Str_Def(s, bind_list) -> "struct " ^ s ^ " { " ^ 
       String.concat "\n" (List.map string_of_bind bind_list) ^ "\n};\n"
+  | If(t, s, e1, e2, e3) -> string_of_typ t ^ " " ^ s ^ " = if(" ^ string_of_expr e1 ^ ") "
+      ^ string_of_expr e2 ^ " else " ^ string_of_expr e3 
 
 
 let rec string_of_oexpr = function
