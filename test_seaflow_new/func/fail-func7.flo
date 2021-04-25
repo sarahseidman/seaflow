@@ -8,7 +8,7 @@ int bar() {
 
 int baz() {
   foo(42, 'a');
-  foo(42, bar()); /* int and void, not int and char */
+  foo(42, bar());
   return 8;
 }
 

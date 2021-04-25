@@ -4,7 +4,8 @@ void foo(int a) {
 }
 
 void bar() {
-  foo(40);
+  int i = 40;
+  foo(i);
 }
 
 bar();
