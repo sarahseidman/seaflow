@@ -14,3 +14,26 @@ char[] f = d + e;
 printi(f.length);
 printc(f[0]);
 printc(f[5]);
+
+float[] fl = [1.3, 2.4, 5.6] + [0.3, 4.5];
+printi(fl.length);
+printf(fl[4]);
+
+struct Test {
+    int x;
+    float y;
+    char[] name;
+};
+
+struct Test one = {1,4.5, "hello"};
+struct Test two = {3, 6.5, "world"};
+struct Test three = {2,3.5, "good"};
+struct Test four = {8, 16.5, "morning"};
+
+struct Test[] t = [ one, two ];
+struct Test[] t2 = [ three,four ];
+struct Test[] t3 = t + t2;
+
+printi(t3.length);
+struct Test res = t3[2];
+prints(res.name);

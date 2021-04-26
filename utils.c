@@ -1,36 +1,6 @@
 #include <stdio.h>
 
-
-void array_concat_int(void **f, void **s, void **d)
-{
-  void **src_curr, **dest_curr;
-  int i, j, flen, slen, len, **src, **dest;
-
-  flen = **(int **)f;
-  slen = **(int **)s;
-  len = slen + flen;
-
-  for(i = 1; i <= flen; i++){
-    src_curr = f + i;
-    dest_curr = d + i;
-
-    src = (int **) src_curr;
-    dest = (int **) dest_curr;
-    *dest = *src;
-  }
-
-  j = flen + 1;
-  for (i = 1 ; i <= slen; i++) {
-    src_curr = s + i;
-    dest_curr = d + j++;
-
-    src = (int **) src_curr;
-    dest = (int **) dest_curr;
-    *dest = *src;
-  }
-}
-
-void array_concat_char(void **f, void **s, void **d)
+void array_concat(void **f, void **s, void **d)
 {
   void **src_curr, **dest_curr;
   int i, j, len, flen, slen;
