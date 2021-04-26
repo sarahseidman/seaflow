@@ -6,8 +6,6 @@ let digit = ['0' - '9']
 let char = ['a'-'z'] | ['A'-'Z'] | ['0'-'9'] | ' ' | '!' | ['#'-'~']
 let charlit = "\'"char"\'"
 let strlit = "\""char*"\""
-(* let charlit = '\''(['a'-'z'] | ['A'-'Z'] | ['0'-'9'])'\'' *)
-(* [\x00-\x7F] *)
 let digits = digit+
 
 rule token = parse

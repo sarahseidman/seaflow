@@ -1,0 +1,16 @@
+struct Point {
+    int x; 
+    int y;
+};
+
+struct Point p = {1,2};
+struct Point q = {3,4};
+
+struct Point[] a = [p, q];
+
+int func(struct Point[] b){
+    struct Point d = a[1];
+    return d.x;
+}
+
+printi(func(a));

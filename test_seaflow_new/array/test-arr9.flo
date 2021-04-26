@@ -1,6 +1,0 @@
-char[] a = ['a', 'b', 'c'];
-char[] copy = a;
-
-printc(copy[0]);
-printc(copy[1]);
-printc(copy[2]);

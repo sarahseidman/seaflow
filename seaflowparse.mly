@@ -30,21 +30,9 @@ open Ast
 %left DOT
 
 %%
-
-// program:
-//   glob_body EOF { List.rev $1 }
   
 program:
   glob_lines EOF { List.rev $1 }
-
-// glob_body:
-//    /* nothing */ { [] }
-//   | glob_body vdecl { $2 :: $1 }
-//   | glob_body fdecl { $2 :: $1 }
-//   | glob_body odecl { $2 :: $1 }
-//   | glob_body stmt { $2 :: $1 }
-//   | glob_body obs_stmt { $2 :: $1 }
-
 
 glob_lines:
      { [] }
@@ -54,10 +42,6 @@ glob_line:
   | fdecl    { Fdecl($1) }
   | stmt     { Stmt($1) }
   | obs_stmt { Obs_Stmt($1) }
-  /* | if_stmt  { If($1) } */
-
-
-
 
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE func_body RBRACE
@@ -65,9 +49,6 @@ fdecl:
 	 fname = $2;
 	 formals = List.rev $4;
 	 body = List.rev $7 } }
-
-
-
 
 func_body:
     /* nothing */    { []       }
@@ -94,29 +75,13 @@ typ_list:
     typ                { [$1] }
   | typ_list COMMA typ { $3 :: $1 }
 
-// vdecl:
-//     // typ ID SEMI                              { Id($2) }
-//     typ ID ASSIGN expr SEMI                  { Assign($1, $2, $4) }
-//   | typ ID ASSIGN LBRACE args_list RBRACE SEMI { Str_Assign($1, $2, List.rev $5) }
-//   | typ ID ASSIGN LBRAKT args_list RBRAKT SEMI { Arr_Assign($1, $2, List.rev $5) }
-//   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Decl($2, List.rev $4) }
-
-
 sdecl_list:
     typ ID SEMI                 { [($1,$2)] }
   | sdecl_list typ ID SEMI            { ($2,$3) :: $1 }
 
-/*if_stmt:
-  | IF LPAREN expr RPAREN stmt_list ELSE stmt_list    { If($3, $5, $7) }
-
-stmt_list:
-    /* nothing */  /*{ [] }
-  | stmt_list stmt { $2 :: $1 }*/
-
 stmt:
     expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
-// vdecls
   | typ ID ASSIGN expr SEMI                  { Decl($1, $2, $4) }
   | STRUCT SID LBRACE sdecl_list RBRACE SEMI { Str_Def($2, List.rev $4) }
   | typ ID ASSIGN IF LPAREN expr RPAREN expr ELSE expr SEMI   { If($1, $2, $6, $8, $10) }
@@ -126,12 +91,9 @@ obs_stmt:
     obs_expr SEMI                             { OExpr $1 }
   | OBS ASSIGN expr SEMI                      { OAssign($1, $3)         }
   | OBS ASSIGN obs_expr SEMI                  { OOAssign($1, $3) }
-// odecl:
   | typ OBS SEMI                              { Obs(Observable($1), $2) }
   | typ OBS ASSIGN expr SEMI                  { ODecl(Observable($1), $2, $4) }
   | typ OBS ASSIGN obs_expr SEMI              { OODecl(Observable($1), $2, $4) }
-  // | typ OBS ASSIGN LBRACE args_list RBRACE SEMI { OStr_Decl(Observable($1), $2, List.rev $5) }
-  // | typ OBS ASSIGN LBRAKT args_list RBRAKT SEMI { OArr_Decl(Observable($1), $2, List.rev $5) }
 
   | SUBSCRIBE LPAREN expr COMMA obs_expr RPAREN SEMI { Subscribe($3, $5) }
   | COMPLETE  LPAREN obs_expr RPAREN SEMI            { Complete($3) }
@@ -170,7 +132,8 @@ expr:
   | ID LPAREN args_opt RPAREN                 { Call(Id($1), $3) }
   | LPAREN expr RPAREN LPAREN args_opt RPAREN { Call($2, $5)     }
   | LPAREN expr RPAREN { $2                   }
-  | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE { FuncExpr(List.rev $2, List.rev $6) }   /* anonymous function */
+  | LPAREN formals_opt RPAREN ARROW LBRACE func_body RBRACE 
+        { FuncExpr(List.rev $2, List.rev $6) }   /* anonymous function */
 
 obs_expr:
   | obs_var              { OId($1) }
@@ -218,20 +181,10 @@ obs_expr:
 
 
   | MINUS obs_expr         { OUnop(Neg, $2)       }
-  // | OBS LBRAKT expr RBRAKT { Arr_Ref($1, $3)      }
   | LPAREN obs_expr RPAREN { $2                   }
-
-
-
-// id_var:
-//     ID              { $1 }
-//   // | id_var DOT ID   { Ref($1, $3) }
-
 
 obs_var:
     OBS             { $1 }
-  // | obs_var DOT ID   { Ref($1, $3) }
-
 
 args_opt:
     /* nothing */ { [] }

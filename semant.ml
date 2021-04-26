@@ -43,43 +43,6 @@ let check (globs) =
   let _ = StringHash.add global_vars "printc" (Func([Char], Int)) in
   let _ = StringHash.add global_vars "prints" (Func([Arr(Char)], Void)) in
 
-  (*
-  let built_in_decls = 
-    let add_bind map (name, ty) = StringMap.add name {
-      typ = Void;
-      fname = name; 
-      formals = [(ty, "x")];
-      (*locals = [];*) body = [] } map
-    in List.fold_left add_bind StringMap.empty [ ("printi", Int);
-                                                 ("printf", Float);
-                                                 ("printbig", Int);
-                                                 ("printc", Char); ]
-  in
-
-  let add_func fd = 
-    let built_in_err = "function " ^ fd.fname ^ " may not be defined"
-    and dup_err = "duplicate function " ^ fd.fname
-    and make_err er = raise (Failure er)
-    and n = fd.fname (* Name of the function *)
-    in match fd with (* No duplicate functions or redefinitions of built-ins *)
-         _ when StringMap.mem n built_in_decls -> make_err built_in_err
-       | _ when StringHash.mem function_decls n -> make_err dup_err  
-       | _ ->  StringHash.add function_decls n fd
-  in
-
-  (* let function_decls = List.fold_left ad2d_func built_in_decls []
-  in *)
-
-  (* Return a function from our symbol table *)
-  let find_func s = 
-    try StringHash.find function_decls s
-    with Not_found -> try StringMap.find s built_in_decls
-      with Not_found ->
-        raise (Failure ("unrecognized function " ^ s))
-  in *)
-
-  (* let global_vars = StringMap.empty in *)
-
   let type_of_identifier vars s =
     try StringHash.find vars s
     with Not_found -> raise (Failure ("undeclared identifier " ^ s))
@@ -126,7 +89,7 @@ let check (globs) =
     | Id s       -> (type_of_identifier vars s, SId s)
     | Ref(e, s) ->
       let (t', e') = expr vars e in
-      (* this is ugly but it allows reference of array literals too! *)
+      (* this is how we allow reference of array literals *)
       let str_name = match e' with
         | SId(x) -> x
         | SAliteral(_,_) -> "NONE"
@@ -252,9 +215,6 @@ let check (globs) =
         string_of_typ rt ^ " in " ^ string_of_stmt ex in
       ignore(check_assign lt rt err) ; SDecl(lt, var, (rt, e'))
     | Return e -> let (t, e') = expr vars e in SReturn (t, e') 
-      (* if t = func.typ then SReturn (t, e') 
-      else raise (Failure ("return gives  ^ string_of_typ t ^  expected  ^
-                            string_of_typ func.typ ^  in  ^ string_of_expr e")) *)
     | Str_Def(s, b_list) ->
       let tlist = List.map fst b_list in
       let name = ("struct " ^ s) in
@@ -503,10 +463,6 @@ let check (globs) =
       let (ot, oe') = oexpr vars oe in
       let lt = type_of_identifier vars s in
       SOOAssign(lt, s, (ot, oe'))
-    (*
-    | OArr_Decl of typ * string * expr list
-    | OStr_Decl of typ * string * expr list
-    *)
     | Subscribe(e, oe) ->
       let (ft, e') = expr vars e in
       let (ot, oe') = oexpr vars oe in
@@ -550,8 +506,5 @@ let check (globs) =
       Stmt stmt -> SStmt(check_stmt global_vars stmt)
     | Obs_Stmt obs_stmt -> SObs_Stmt(check_obs_stmt global_vars obs_stmt)
     | Fdecl func -> SStmt(fdecl_to_assign_stmt global_vars func)
-    (* | Fdecl func -> add_func func ; SFdecl(check_func_decl global_vars func) *)
-
 
   in (List.map check_glob globs)
-

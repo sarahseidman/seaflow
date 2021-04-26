@@ -22,7 +22,6 @@ let () =
   let ast = Seaflowparse.program Scanner.token lexbuf in
   match !action with
     Ast -> print_string (Ast.string_of_program ast)
-  (* | _ -> raise (Failure "Not Implemented") *)
   | _ -> let sast = Semant.check ast in
     match !action with
       Ast     -> ()

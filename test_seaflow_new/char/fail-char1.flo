@@ -1,4 +1,0 @@
-char x = 'c';
-char x = 'd';
-
-printc(x);

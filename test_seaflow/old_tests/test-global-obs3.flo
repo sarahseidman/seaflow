@@ -1,2 +1,0 @@
-char $o = 'o';
-printc($o);

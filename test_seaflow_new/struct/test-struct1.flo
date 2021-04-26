@@ -1,9 +1,0 @@
-struct Point {
-    int x;
-    int y;
-};
-
-struct Point p = {4, 9};
-
-printi(p.x);
-printi(p.y);

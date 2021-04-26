@@ -1,6 +1,0 @@
-float foo() {
-    float[] a = [1.0, 3.4, 2.1];
-    return a[1];
-}
-
-printf(foo());

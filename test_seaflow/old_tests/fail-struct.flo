@@ -1,1 +1,0 @@
-struct St my_struct = {0, 0};

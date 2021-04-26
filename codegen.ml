@@ -105,8 +105,6 @@ let translate (globs) =
 
   let printi_t : L.lltype =
     L.function_type i32_t [| i32_t |] in
-  (* let printf_func : L.llvalue =
-    L.declare_function "printf" printf_t the_module in L.declare_function returns the function if it already exits in the module *)
   let printf_t : L.lltype =
     L.function_type i32_t [| float_t |] in 
   let printc_t : L.lltype =
@@ -169,25 +167,6 @@ let translate (globs) =
     | _ as x -> raise (Failure ("No match found for " ^ A.string_of_typ x))
   in
 
-  (* let add_global_var (t, s, v, builder) =
-    let _ = match StringHash.find_opt global_vars s with
-      | Some(_) -> raise (Failure "Cannot declare global more than once!")
-      | None -> ()
-    in
-    let init t' = match t' with
-        A.Float -> L.const_float float_t 0.0
-      | A.Int   -> L.const_int i32_t 0
-      | A.Bool  -> L.const_int i1_t 0
-      | A.Char  -> L.const_int i8_t 0
-      | A.Arr(_) -> L.const_null (L.type_of v)
-      | A.Func(_, _) as f -> L.const_null (ltype_of_typ f)
-      | A.Struct(_) as s -> L.const_pointer_null (ltype_of_typ s)
-      | _ as x -> raise (Failure ("Cannot have global of type: " ^ A.string_of_typ x))
-    in
-    let store = L.define_global s (init t) the_module in
-    ignore(L.build_store v store builder) ; StringHash.add global_vars s store
-  in *)
-
   (* LLVM insists each basic block end with exactly one "terminator"
      instruction that transfers control.  This function runs "instr builder"
      if the current block does not already have a terminator.  Used,
@@ -196,11 +175,6 @@ let translate (globs) =
     match L.block_terminator (L.insertion_block builder) with
       Some _ -> ()
     | None -> ignore (instr builder) in
-
-  (* let int_format_str builder = L.build_global_stringptr "%d\n" "fmt" builder in
-  let float_format_str builder = L.build_global_stringptr "%f\n" "fmt" builder in
-  let char_format_str builder = L.build_global_stringptr "%c\n" "fmt" builder in *)
-
 
   let next_ftype = L.function_type void_t [| obv_pt |] in
   let next_function = L.define_function "onNext" next_ftype the_module in
@@ -324,16 +298,11 @@ let translate (globs) =
       and float_left = (t1 = float_t && t2 = i32_t)
       and float_right = (t1 = i32_t && t2 = float_t) in
       let to_float v = L.build_sitofp v float_t "tmp" builder in
-      (* let to_bool v2 = L.build_sitofp v2 i1_t "tmp" builder in *)
-      (* let to_bool v2 = L.build_intcast v2 i1_t "tmp" builder in *)
-      
       (match op with
         A.Add when same_int_or_char       -> L.build_add e1' e2' "tmp" builder
       | A.Sub when same_int_or_char       -> L.build_sub e1' e2' "tmp" builder
       | A.Mult when same_int_or_char      -> L.build_mul e1' e2' "tmp" builder
       | A.Div when same_int_or_char       -> L.build_sdiv e1' e2' "tmp" builder
-      (* | A.And when same_int_or_char       -> L.build_and e1' e2' "tmp" builder
-      | A.Or when same_int_or_char        -> L.build_or e1' e2' "tmp" builder *)
       | A.Equal when same_int_or_char     -> L.build_icmp L.Icmp.Eq e1' e2' "tmp" builder
       | A.Neq when same_int_or_char       -> L.build_icmp L.Icmp.Ne e1' e2' "tmp" builder
       | A.Less when same_int_or_char      -> L.build_icmp L.Icmp.Slt e1' e2' "tmp" builder
@@ -375,29 +344,13 @@ let translate (globs) =
       (match op with
         A.Neg when t = A.Float -> L.build_fneg
       | A.Neg                  -> L.build_neg) e' "tmp" builder
-    (* | SBCall("printi", [e]) ->
-        L.build_call printf_func [| int_format_str builder; (expr vars builder e) |]
-          "printf" builder
-    | SBCall("printc", [e]) ->
-        L.build_call printf_func [| char_format_str builder; (expr vars builder e) |]
-          "printf" builder
-    | SBCall("printf", [e]) ->
-        L.build_call printf_func [| float_format_str builder; (expr vars builder e) |]
-          "printf" builder *)
-    (* | SCall(n, args) -> print_endline n ; L.const_int i32_t 5 *)
-    (* | SBCall("prints", [e]) ->
-        L.build_call print_string_func [| (expr vars builder e) |]
-          "prints" builder *)
     | SCall(f, args) ->
       let fdef = expr vars builder f in
 
-      (* let (fdef, fdecl) = StringHash.find global_funcs f in *)
       let llargs = List.rev (List.map (expr vars builder) (List.rev args)) in
       let result = (match tt with
                      A.Void -> ""
                    | _ -> "f_result") in
-
-      (* print_endline ("fdef: " ^ (L.string_of_lltype (L.type_of fdef)));  *)
 
       L.build_call fdef (Array.of_list llargs) result builder
     | _ as x -> raise (Failure ("Not Implemented 2003 " ^ (string_of_sexpr (tt, x))))
@@ -410,7 +363,6 @@ let translate (globs) =
 
     let ftype = L.function_type (ltype_of_typ rt) formal_types in
     let the_function = L.define_function name ftype the_module in
-    (* let () = StringHash.add global_funcs name (the_function, 0) in *)
 
     let local_builder = L.builder_at_end context (L.entry_block the_function) in
 
@@ -486,13 +438,11 @@ let translate (globs) =
       | _ -> raise (Failure "Not Implemented 2005")
     in
 
-    (* List.iter (build_local_stmt local_builder) sstmts; *)
     let local_builder_out = build_local_stmt local_builder (SBlock sstmts) in
 
     add_terminal local_builder_out (match rt with
             A.Void -> L.build_ret_void
           | A.Float -> L.build_ret (L.const_float float_t 0.0)
-          (* | A.Arr(t) -> L.build_ret (L.const_pointer_null (ltype_of_typ t)) *)
           | t -> L.build_ret (L.const_int (ltype_of_typ t) 0));
     the_function
   in
@@ -544,9 +494,7 @@ let translate (globs) =
         let dest_func_type = L.pointer_type (L.function_type llrtype ([| lltyp1 |])) in
         let _fv  = L.build_bitcast (L.params nfunction).(3) dest_func_type        "i8_to_f"  nbuilder in
 
-        (* print_endline ("_fv: " ^ (L.string_of_lltype (L.type_of _fv)));  *)
         let p1 = L.build_load _p1v "p1" nbuilder in
-        (* L.build_call printf_func [| int_format_str nbuilder;  L.const_int i32_t 1 |] *)
         
         L.build_call _fv [| p1 |]
       | DoubleObservable ->
@@ -597,9 +545,6 @@ let translate (globs) =
       ignore(L.build_call 
           (lookup global_vars "subscribe") [| upstream; obs |] "" builder) ;
 
-      (* let ups_child = L.build_struct_gep upstream 4 "__child" builder in
-      ignore(L.build_store obs ups_child builder); *)
-
       let upstream_curr_vpp = L.build_struct_gep upstream 0 "__ups_curr_vpp" builder in
       let upstream_curr_vp = L.build_load upstream_curr_vpp "__ups_curr_vp" builder in
       let obs_upv_vpp = L.build_struct_gep obs 1 "__dwn_upv_vpp" builder in
@@ -614,7 +559,6 @@ let translate (globs) =
       (* 4 *)
       let _r  = L.build_load (L.build_struct_gep obs 0 "_r"  builder) "_r"  builder in
       let _p1 = L.build_load (L.build_struct_gep obs 1 "_p1" builder) "_p1" builder in
-      (* let _p2 = L.build_load (L.build_struct_gep obs 2 "_p2" builder) "_p2" builder in *)
       let _f  = L.build_load (L.build_struct_gep obs 3 "_f"  builder) "_f"  builder in
       let _c  = L.build_load (L.build_struct_gep obs 6 "_c"  builder) "_c"  builder in
       ignore(L.build_call _c [| _r; _p1; _p1; _f |] "" builder) ;
@@ -689,7 +633,6 @@ let translate (globs) =
     | SOBinop2(_, _, _) -> raise (Failure ("Not Implemented 2020"))
     | SOBinop3(_, _, _) -> raise (Failure ("Not Implemented 2020"))
     | SOUnop(_, _) -> raise (Failure ("Not Implemented 2020"))
-    (* | _ -> raise (Failure ("Not Implemented 2020")) *)
   in
   let build_global_stmt builder = function
       SExpr e -> ignore(expr global_vars builder e); builder
@@ -699,9 +642,6 @@ let translate (globs) =
           | None -> ()
         in
 
-        (* print_endline ("e': " ^ (L.string_of_lltype (L.type_of e')));  *)
-
-        (* print_endline ("e': " ^ ()) *)
         let init t' = match t' with
             A.Float -> L.const_float float_t 0.0
           | A.Int   -> L.const_int i32_t 0
@@ -715,8 +655,6 @@ let translate (globs) =
         let store = L.define_global s (init t) the_module in
         StringHash.add global_vars s store;
         let e' = expr global_vars builder e in
-
-        (* print_endline ("stored " ^ s ^ " to global"); *)
       
         let _ = match t with
           | A.Arr(x) -> StringHash.add arr_types s x
@@ -724,14 +662,12 @@ let translate (globs) =
         in 
         ignore(L.build_store e' store builder);
         builder
-        (* let _ = add_global_var (t, s, e', builder) in builder *)
     | SStr_Def(s, b_list) ->
         let tlist = List.map fst b_list in
         let flist = List.map snd b_list in
         let ty = struct_t (list_to_lltype tlist)  in
         StringHash.add global_structs ("struct " ^ s) (ty, tlist, flist) ; builder
-    | _ -> raise (Failure "Not Implemented 2002")
-      (* let builder = L.builder_at_end context (L.entry_block the_function) in  *)
+    | _ -> raise (Failure "Global statement not implemented")
   in
 
 
@@ -748,14 +684,12 @@ let translate (globs) =
       in
       let obv_ptr = make_observable (lt', Some e') builder in
       let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
-      (* let () = printf "function name= %s wo\n%!" s in *)
       ignore(L.build_store obv_ptr store builder) ;
       StringHash.add global_vars s store;
       builder
     | SOODecl(_, s, oe) ->
       let oe' = oexpr global_vars builder oe in
       let store = L.define_global s (L.const_null (L.pointer_type obv_t)) the_module in
-      (* let () = printf "function name= %s wo\n%!" s in *)
       ignore(L.build_store oe' store builder) ;
       StringHash.add global_vars s store;
       builder
@@ -802,7 +736,6 @@ let translate (globs) =
       | _ -> raise  (Failure "Subscriber must be a function")
       in
       let func_p = expr global_vars builder e in
-      (* print_endline ("func_p: " ^ (L.string_of_lltype (L.type_of func_p)));  *)
 
       let upstream = oexpr global_vars builder oe in
       let obs = make_observable (rt, None) builder in
@@ -817,23 +750,12 @@ let translate (globs) =
 
       (* 2 *)
 
-      (* let ups_child = L.build_struct_gep upstream 4 "__child" builder in
-      ignore(L.build_store obs ups_child builder); *)
-
       let upstream_curr_vpp = L.build_struct_gep upstream 0 "__ups_curr_vpp" builder in
       let upstream_curr_vp = L.build_load upstream_curr_vpp "__ups_curr_vp" builder in
       let obs_upv_vpp = L.build_struct_gep obs 1 "__dwn_upv_vpp" builder in
       ignore(L.build_store upstream_curr_vp obs_upv_vpp builder) ;
       ignore(L.build_call 
           (lookup global_vars "subscribe") [| upstream; obs |] "" builder) ;
-
-
-      (*
-      let d_func_vpp = L.build_struct_gep obs 3 "__func_vpp" builder in
-      let d_func_p  = L.build_load d_func_vpp "__func_p" builder in
-
-      let result = L.build_call d_func_p [| L.const_int i32_t 5 |] "result" builder in 
-      *)
 
       (* 3 *)
       let converter = build_type_converter (rt, p1t, A.Void) SingleObservable in
@@ -844,7 +766,6 @@ let translate (globs) =
       (* 4 *)
       let _r  = L.build_load (L.build_struct_gep obs 0 "_r"  builder) "_r"  builder in
       let _p1 = L.build_load (L.build_struct_gep obs 1 "_p1" builder) "_p1" builder in
-      (* let _p2 = L.build_load (L.build_struct_gep obs 2 "_p2" builder) "_p2" builder in *)
       let _f  = L.build_load (L.build_struct_gep obs 3 "_f"  builder) "_f"  builder in
       let _c  = L.build_load (L.build_struct_gep obs 6 "_c"  builder) "_c"  builder in
       ignore(L.build_call _c [| _r; _p1; _p1; _f |] "" builder) ;
@@ -863,8 +784,6 @@ let translate (globs) =
   let translate_line glob = match glob with
         SStmt stmt -> ignore(build_global_stmt global_builder stmt)
       | SObs_Stmt obs_stmt -> ignore(build_obs_stmt global_builder obs_stmt)
-      (* | SFdecl func -> let top_local_vars = StringHash.create 10 in
-          ignore(build_function (func, top_local_vars)) *)
 
   in
   let () = List.iter translate_line globs in
@@ -960,23 +879,12 @@ let translate (globs) =
     let current' = L.build_alloca subscription_pt "current_p" builder in (* current' : subscription**  *)
     ignore(L.build_store _sub current' builder) ;
 
-    (* obs->__downstreamObservable != NULL *)
-    (* let cond = L.build_icmp L.Icmp.Ne (L.const_pointer_null subscription_pt) sub "tmp" builder in
-    let cond2 = L.build_icmp L.Icmp.Eq (L.const_int i32_t 1) d_class "tmp2" then_builder in *)
-
-
     (* child blocks *)
     let while_pred_bb = L.append_block context "while_pred" next_function in
     let while_pred_builder = L.builder_at_end context while_pred_bb in
 
     let while_body_bb = L.append_block context "while_body" next_function in
     let while_body_builder = L.builder_at_end context while_body_bb in
-(* 
-    let single_bb = L.append_block context "single" next_function in
-    let single_builder = L.builder_at_end context single_bb in
-
-    let double_bb = L.append_block context "double" next_function in
-    let double_builder = L.builder_at_end context double_bb in *)
 
     let merge_bb = L.append_block context "merge" next_function in
     let merge_builder = L.builder_at_end context merge_bb in
@@ -989,14 +897,6 @@ let translate (globs) =
 
     let d' = L.build_struct_gep current 1 "__d_ref" while_body_builder in  (* d' : observable**  *)
     let d  = L.build_load d' "__d" while_body_builder in                   (* d  : observable*   *)
-    (* L.build_call printf_func [| int_format_str builder; (L.const_int i32_t 100) |] "printf" while_pred_builder; *)
-
-
-
-    (* while_body block *)
-    (* let d_class' = L.build_struct_gep d 5 "__d_class_p" while_body_builder in      (* d_class' : i32*    *)
-    let d_class  = L.build_load d_class' "__d_class" while_body_builder in         d_class  : i32     *)
-    (* let cond2 = L.build_icmp L.Icmp.Eq (L.const_int i32_t 1) d_class "tmp2" while_body_builder in *)
 
     let next_sub' = L.build_struct_gep current 0 "__next_p" while_body_builder in  (* next_sub' : subscription**  *)
     let next_sub  = L.build_load next_sub' "__next" while_body_builder in          (* next_sub  : subscription*   *)
@@ -1005,7 +905,6 @@ let translate (globs) =
 
 
     (* single block *)
-    (* TODO: variable types *)
 
     let _r  = L.build_load (L.build_struct_gep d 0 "_r"  while_body_builder) "_r"  while_body_builder in
     let _p1 = L.build_load (L.build_struct_gep d 1 "_p1" while_body_builder) "_p1" while_body_builder in
@@ -1014,55 +913,9 @@ let translate (globs) =
     let _c  = L.build_load (L.build_struct_gep d 6 "_c"  while_body_builder) "_c"  while_body_builder in
     let _ = L.build_call _c [| _r; _p1; _p2; _f |] "" while_body_builder in 
 
-    (* let temp_func_pt_typ = L.pointer_type (L.function_type i32_t [| i32_t |]) in
-
-    let d_func_vpp = L.build_struct_gep d 3 "__func_vpp" single_builder in
-    let d_func_vp  = L.build_load d_func_vpp "__func_vp" single_builder in
-    let d_func_p   = L.build_bitcast d_func_vp temp_func_pt_typ "i8_to_func" single_builder in
-
-    let d_upv_vpp = L.build_struct_gep d 1 "__upv_vpp" single_builder in                         (* d_upv_vpp: i8**  *)
-    let d_upv_vp  = L.build_load d_upv_vpp "__upv_vp" single_builder in                          (* d_upv_vp : i8*   *)
-    let d_upv_p = L.build_bitcast d_upv_vp (L.pointer_type i32_t) "i8_to_upv" single_builder in  (* d_upv_p  : i32*  *)
-    let d_upv   = L.build_load d_upv_p "__upv" single_builder in                                 (* d_upv    : i32   *)
-
-    let result = L.build_call d_func_p [| d_upv |] "result" single_builder in 
-
-    let d_curr_vpp = L.build_struct_gep d 0 "__curr_vpp" single_builder in
-    let d_curr_vp  = L.build_load d_curr_vpp "__curr_vp" single_builder in
-    let d_curr_p   = L.build_bitcast d_curr_vp (L.pointer_type i32_t) "i8_to_curr" single_builder in
-    L.build_store result d_curr_p single_builder; *)
-
     (*    onNext(d); *)
     ignore(L.build_call next_function [| d |] "" while_body_builder) ;
 
-
-(* 
-    (* double block *)
-    let temp_func_pt_typ2 = L.pointer_type (L.function_type i32_t [| i32_t; i32_t |]) in
-
-    let d_func2_vpp = L.build_struct_gep d 3 "__func2_vpp" double_builder in
-    let d_func2_vp  = L.build_load d_func2_vpp "__func2_vp" double_builder in
-    let d_func2_p   = L.build_bitcast d_func2_vp temp_func_pt_typ2 "i8_to_func2" double_builder in
-
-    let d_upv1_vpp = L.build_struct_gep d 1 "__upv1_vpp" double_builder in                          (* d_upv1_vpp: i8**  *)
-    let d_upv1_vp  = L.build_load d_upv1_vpp "__upv1_vp" double_builder in                          (* d_upv1_vp : i8*   *)
-    let d_upv1_p = L.build_bitcast d_upv1_vp (L.pointer_type i32_t) "i8_to_upv1" double_builder in  (* d_upv1_p  : i32*  *)
-    let d_upv1   = L.build_load d_upv1_p "__upv1" double_builder in 
-
-    let d_upv2_vpp = L.build_struct_gep d 2 "__upv2_vpp" double_builder in                          (* d_upv2_vpp: i8**  *)
-    let d_upv2_vp  = L.build_load d_upv2_vpp "__upv2_vp" double_builder in                          (* d_upv2_vp : i8*   *)
-    let d_upv2_p = L.build_bitcast d_upv2_vp (L.pointer_type i32_t) "i8_to_upv2" double_builder in  (* d_upv2_p  : i32*  *)
-    let d_upv2   = L.build_load d_upv2_p "__upv2" double_builder in
-
-    let result2 = L.build_call d_func2_p [| d_upv1; d_upv2 |] "result2" double_builder in
-
-    let d_curr2_vpp = L.build_struct_gep d 0 "__curr_vpp2" double_builder in
-    let d_curr2_vp  = L.build_load d_curr2_vpp "__curr_vp2" double_builder in
-    let d_curr2_p   = L.build_bitcast d_curr2_vp (L.pointer_type i32_t) "i8_to_curr2" double_builder in
-    L.build_store result2 d_curr2_p double_builder;
-
-    (*    onNext(d); *)
-    L.build_call next_function [| d |] "" double_builder ; *)
 
 
 

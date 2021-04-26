@@ -1,7 +1,0 @@
-int foo() {
-  int a = if (1 == 1) 42 else if (1 == 1) 17 else 4;
-  printi(a);
-  return 0;
-}
-
-foo();

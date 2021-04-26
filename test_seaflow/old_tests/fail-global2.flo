@@ -1,8 +1,0 @@
-int b;
-char c;
-int a;
-int b; /* Duplicate global variable */
-
-int foo() {
-  return 0;
-}

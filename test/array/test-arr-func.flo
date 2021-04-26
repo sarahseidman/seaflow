@@ -1,0 +1,17 @@
+(int)->(int) mult = (int y) -> {
+        return y * 100;
+};
+
+(int)->(int) div = (int y) -> {
+        return y / 100;
+};
+
+struct Foo {
+    int x;
+    (int)->(int) func;
+};
+
+struct Foo baz = { 15, div };
+
+int quotient = (baz.func)(100);
+printi(100 * quotient);

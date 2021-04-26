@@ -34,7 +34,6 @@ type expr =
 
 and stmt =
     Block of stmt list
-  (* | Obs of string *)
   | Expr of expr
   | If of typ * string * expr * expr * expr
   | Return of expr
@@ -53,7 +52,7 @@ type func_decl = {
 
 type oexpr =
   | OId of string
-  | OBinop1 of oexpr * op * expr   (* For map operation     *)
+  | OBinop1 of oexpr * op * expr   (* For map operation *)
   | OBinop2 of expr * op * oexpr
   | OBinop3 of oexpr * op * oexpr  (* For combine operation *)
   | OUnop of uop * oexpr 
@@ -72,16 +71,6 @@ type obs_stmt =
   | OStr_Decl of typ * string * expr list
   | Subscribe of expr * oexpr
   | Complete of oexpr
-  (* glob_line:
-  vdec { Vdecl($1) }
-| fdecl { Fdecl($1) }
-| odecl { Odecl($1) }
-| stmt { Stmt($1) }
-| obs_stmt { Obs_Stmt($1) } *)
-
-(* type glob
-  | Vdecl of  *)
-
 
 type glob = 
     Stmt of stmt

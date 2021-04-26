@@ -1,6 +1,0 @@
-int[] a = [1, 2, 3, 5];
-
-printi(a[0]);
-printi(a[1]);
-printi(a[2]);
-printi(a[3]);

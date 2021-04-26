@@ -1,8 +1,0 @@
-void foo(int a, char b) {}
-
-int bar() {
-  foo(42, 'c');
-  foo(42, 42); /* Fail: int, not char */
-}
-
-bar();

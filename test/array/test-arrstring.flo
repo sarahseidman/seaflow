@@ -1,0 +1,5 @@
+char[] c = "hello world!";
+printc(c[0]);
+printc(c[1]);
+
+printc(c[c.length - 2]);

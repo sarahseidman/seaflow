@@ -1,7 +1,0 @@
-char i = '!';
-char j = '#';
-char k = i + j;
-
-printc(i);
-printc(j);
-printc(k);

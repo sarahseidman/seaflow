@@ -1,6 +1,0 @@
-char foo() {
-    char[] a = ['a', 'b', 'c'];
-    return a[1];
-}
-
-printc(foo());

@@ -1,6 +1,0 @@
-char[] a = ['a', 'b', 'c'];
-int y = 0;
-int z = 2;
-
-printc(a[y]);
-printc(a[z]);

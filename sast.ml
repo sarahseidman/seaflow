@@ -35,20 +35,10 @@ sstmt =
   | SDecl of typ * string * sexpr
   | SStr_Def of string * bind list
 
-(* 
-type sfunc_decl = {
-    styp : typ;
-    sfname : string;
-    sformals : bind list;
-    sbody : sstmt list;
-  }
- *)
-
-
 type soexpr = typ * sox
 and sox =
     SOId of string
-  | SOBinop1 of soexpr * op * sexpr   (* For map operation     *)
+  | SOBinop1 of soexpr * op * sexpr   (* For map operation *)
   | SOBinop2 of sexpr * op * soexpr
   | SOBinop3 of soexpr * op * soexpr  (* For combine operation *)
   | SOUnop of uop * soexpr
@@ -66,20 +56,9 @@ type sobs_stmt =
   | SOStr_Decl of typ * string * sexpr list
   | SSubscribe of string * sexpr * soexpr
   | SComplete of string * soexpr
-  (* glob_line:
-  vdec { Vdecl($1) }
-| fdecl { Fdecl($1) }
-| odecl { Odecl($1) }
-| stmt { Stmt($1) }
-| obs_stmt { Obs_Stmt($1) } *)
-
-(* type glob
-  | Vdecl of  *)
-
 
 type sglob = 
     SStmt of sstmt
-  (* | SFdecl of sfunc_decl *)
   | SObs_Stmt of sobs_stmt
 
 type sprogram = sglob list
@@ -104,8 +83,6 @@ let rec string_of_sexpr (t, e) =
       s ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SArr_Ref(e1, e2) -> string_of_sexpr e1 ^ "[" ^ string_of_sexpr e2 ^ "]"
   | SRef(s1, _, s2) -> s1 ^ "." ^ s2
-  (* | SIf(e1, e2, e3) -> "if(" ^ string_of_sexpr e1 ^ ") " ^ string_of_sexpr e2 ^ " else "
-      ^ string_of_sexpr e3 *)
   | SFuncExpr(bind_list, _, stmt_list) -> "(" ^ 
       String.concat ", " (List.map string_of_bind bind_list) ^ ") -> {" ^
       String.concat "" (List.map string_of_sstmt stmt_list) ^ "}"
@@ -161,17 +138,9 @@ let string_of_sobs_stmt = function
       s ^ "(" ^ string_of_sexpr e ^ ", " ^ string_of_soexpr oe ^ ");\n"
   | SComplete(s, oe) ->
       s ^ "(" ^ string_of_soexpr oe ^ ");\n"
-      
-(* let string_of_sfdecl fdecl =
-  string_of_typ fdecl.styp ^ " " ^
-  fdecl.sfname ^ "(" ^ String.concat ", " (List.map snd fdecl.sformals) ^
-  ")\n{\n" ^
-  String.concat "" (List.map string_of_sstmt fdecl.sbody) ^
-  "}\n" *)
 
 let sstr_of_glob = function
    SStmt(stmt) -> string_of_sstmt stmt
-  (* | SFdecl(func_decl) -> string_of_sfdecl func_decl *)
   | SObs_Stmt(obs_stmt) -> string_of_sobs_stmt obs_stmt
 
 let sstring_of_program (globs) = 

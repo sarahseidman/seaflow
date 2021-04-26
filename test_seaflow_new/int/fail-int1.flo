@@ -1,4 +1,0 @@
-int x = 7;
-int x = 12;
-
-printi(x);

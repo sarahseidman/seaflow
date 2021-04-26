@@ -1,7 +1,0 @@
-int[] a = [1, 2, 3, 5];
-int[] copy = a;
-
-printi(copy[0]);
-printi(copy[1]);
-printi(copy[2]);
-printi(copy[3]);

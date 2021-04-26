@@ -1,8 +1,0 @@
-struct Position {
-    int lat;
-    int lng;
-};
-
-struct Position me = {4, 5};
-
-printi(me.lat);

@@ -1,6 +1,0 @@
-char[] c = "hello world!";
-printc(c[0]);
-printc(c[1]);
-
-/* length includes null terminator */
-printc(c[c.length - 2]);

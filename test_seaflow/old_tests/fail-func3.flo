@@ -1,9 +1,0 @@
-int foo(int a, char b, int c) {
-  return 7;
-}
-
-void bar(int a, void b, int c) {} /* Error: illegal void formal b */
-
-int baz() {
-  return 0;
-}

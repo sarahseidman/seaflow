@@ -1,5 +1,0 @@
-char[] a = ['a', 'b', 'c'];
-
-printc(a[0]);
-printc(a[1]);
-printc(a[2]);
