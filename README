@@ -1,6 +1,6 @@
 The Seaflow compiler
 
-Seaflow is an imperative language designed to address the asynchronous event 
+Seaflow is a declarative language designed to address the asynchronous event 
 conundrum by supporting some of the core principles of ReactiveX and reactive 
 programming natively. Modern applications handle many asynchronous events, but 
 it is difficult to model such applications using programming languages such as 
